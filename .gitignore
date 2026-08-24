@@ -28,3 +28,9 @@ Thumbs.db
 *.log
 .vscode/
 .idea/
+
+# next
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo

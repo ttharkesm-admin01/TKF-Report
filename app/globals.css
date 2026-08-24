@@ -1,0 +1,57 @@
+@import 'tailwindcss';
+
+/* ------------------------------------------------------------------ */
+/* โทนสี — ธีมเดียวทั้งเด็ค แก้ที่นี่ที่เดียว                             */
+/* ของเดิมเป็นธีมเริ่มต้น Office แล้วไล่ทาเขียวทีละกล่อง (PROJECT.md ข้อ 2.4) */
+/* ------------------------------------------------------------------ */
+@theme {
+  --color-brand:       #007a3d;
+  --color-brand-deep:  #00552a;
+  --color-brand-soft:  #e8f4ec;
+  --color-accent:      #f5a623;
+  --color-ink:         #1a1a1a;
+  --color-ink-soft:    #5c5c5c;
+  --color-line:        #d9d9d9;
+  --color-paper:       #ffffff;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background: #f2f3f5;
+  color: var(--color-ink);
+  font-family: var(--font-sarabun), 'Sarabun', 'Noto Sans Thai', 'Segoe UI', sans-serif;
+  /* ฟอนต์เดียวทั้งระบบ — แก้ปัญหาฟอนต์ปน 7 แบบ และตระกูล UPC ที่มีเฉพาะ Windows */
+}
+
+/* ------------------------------------------------------------------ */
+/* เวทีสไลด์ 16:9                                                      */
+/* ขนาดตัวหนังสือใช้หน่วย cqw (เทียบความกว้างสไลด์) ตัวหนังสือจึงย่อ-ขยาย   */
+/* ตามกรอบเสมอ ไม่ว่าจะดูบนจอ ในหน้าสารบัญย่อ หรือตอนพิมพ์ PDF           */
+/* ------------------------------------------------------------------ */
+.slide {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  container-type: inline-size;
+  position: relative;
+  overflow: hidden;
+  background: var(--color-paper);
+}
+
+@media print {
+  /* 13.333in x 7.5in = ขนาดสไลด์ PowerPoint จอกว้าง พิมพ์แล้วได้สัดส่วนเดิมเป๊ะ */
+  @page { size: 338.67mm 190.5mm; margin: 0; }
+
+  body { background: #fff; }
+  .no-print { display: none !important; }
+
+  .slide {
+    width: 100vw;
+    break-after: page;
+    box-shadow: none !important;
+    border: 0 !important;
+  }
+  .slide:last-child { break-after: auto; }
+}
