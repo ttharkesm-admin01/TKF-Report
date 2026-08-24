@@ -1,0 +1,30 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# build
+.next/
+out/
+dist/
+build/
+
+# env & secrets — ห้าม commit เด็ดขาด
+.env
+.env.*
+!.env.example
+*credentials*.json
+*service-account*.json
+
+# รูปภาพและไฟล์ต้นฉบับ — เก็บบน Google Drive ไม่ใช่ใน git
+uploads/
+photos/
+*.pptx
+*.xlsx
+
+# system
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
