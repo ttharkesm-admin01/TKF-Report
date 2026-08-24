@@ -59,12 +59,68 @@ export interface DeckMeta {
   status: string;
 }
 
+/** ตารางยาวถูกหั่นเป็นหลายหน้า — ส่วนนี้บอกว่าหน้านี้แสดงแถวไหนบ้าง */
+export interface SlidePart {
+  index: number;   // เริ่มที่ 1
+  total: number;
+  rowKeys: string[];
+  /** true = หน้าสุดท้ายของบล็อกนี้ · แถวรวมกับบรรทัดสรุปขึ้นเฉพาะหน้านี้ */
+  isLast: boolean;
+}
+
 /** สไลด์หนึ่งหน้า — ผูกกลับไปหาหัวข้อที่มันสังกัด */
 export interface DeckSlide {
   /** ลำดับหน้าในเด็ค เริ่มที่ 1 */
   page: number;
   section: DeckSection;
   block: DeckBlock;
+  /** มีเฉพาะตารางที่ยาวเกินหนึ่งหน้า */
+  part?: SlidePart;
+}
+
+/**
+ * แถวสูงสุดต่อหนึ่งหน้า — เกินกว่านี้ตัวหนังสือจะเล็กจนอ่านบนจอโปรเจกเตอร์ไม่ออก
+ * ตารางที่ยาวกว่านี้หั่นเป็นหลายหน้าแทนการย่อตัวหนังสือลงไปเรื่อย ๆ
+ * เลขนี้เผื่อฉลากภาษาไทยยาว ๆ ที่ตัดเป็น 2 บรรทัดไว้แล้ว · ตรวจด้วย scripts/check-overflow.mjs
+ */
+const MAX_ROWS_PER_SLIDE = 9;
+
+interface RawMatrixRow {
+  key: string;
+  hideIfEmpty?: boolean;
+  values: Array<number | 'none' | null>;
+}
+
+/** แถวที่จะได้ขึ้นจอจริง — ตัดแถวที่ตั้ง hideIfEmpty แล้วว่างทั้งปีออกก่อน */
+function visibleRowKeys(block: RawBlock): string[] {
+  const rows = (block.rows as RawMatrixRow[] | undefined) ?? [];
+  return rows
+    .filter((r) => !r.hideIfEmpty || r.values.some((v) => typeof v === 'number'))
+    .map((r) => r.key);
+}
+
+/** หั่นบล็อกเป็นหน้า ๆ · บล็อกทั่วไปได้หน้าเดียวเสมอ */
+function splitBlock(section: DeckSection, block: DeckBlock): DeckSlide[] {
+  if (block.type !== 'monthly-matrix') return [{ page: 0, section, block }];
+
+  const keys = visibleRowKeys(block.raw);
+  if (keys.length <= MAX_ROWS_PER_SLIDE) return [{ page: 0, section, block }];
+
+  const pages = Math.ceil(keys.length / MAX_ROWS_PER_SLIDE);
+  // เกลี่ยให้ทุกหน้าแถวใกล้เคียงกัน ดีกว่าปล่อยหน้าสุดท้ายเหลือแถวเดียว
+  const per = Math.ceil(keys.length / pages);
+
+  return Array.from({ length: pages }, (_, i) => ({
+    page: 0,
+    section,
+    block,
+    part: {
+      index: i + 1,
+      total: pages,
+      rowKeys: keys.slice(i * per, (i + 1) * per),
+      isLast: i === pages - 1,
+    },
+  }));
 }
 
 /**
@@ -84,7 +140,12 @@ const BUILD_STEP: Record<BlockType, number> = {
 };
 
 /** ชนิดที่ระบบเรนเดอร์ได้เต็มรูปแบบแล้ว — ที่เหลือขึ้นเป็นช่องว่างรอทำ */
-export const IMPLEMENTED: ReadonlySet<BlockType> = new Set<BlockType>(['cover', 'closing']);
+export const IMPLEMENTED: ReadonlySet<BlockType> = new Set<BlockType>([
+  'cover',
+  'closing',
+  'monthly-matrix',
+  'chart',
+]);
 
 export const isImplemented = (b: DeckBlock): boolean => IMPLEMENTED.has(b.type);
 
@@ -140,9 +201,9 @@ export const sections: DeckSection[] = (sectionsConfig.sections as RawSection[])
 );
 
 /** เด็คทั้งเล่มเรียงเป็นหน้า ๆ */
-export const slides: DeckSlide[] = sections.flatMap((section) =>
-  section.blocks.map((block) => ({ page: 0, section, block })),
-).map((s, i) => ({ ...s, page: i + 1 }));
+export const slides: DeckSlide[] = sections
+  .flatMap((section) => section.blocks.flatMap((block) => splitBlock(section, block)))
+  .map((s, i) => ({ ...s, page: i + 1 }));
 
 export const findSlide = (blockId: string): DeckSlide | undefined =>
   slides.find((s) => s.block.id === blockId);

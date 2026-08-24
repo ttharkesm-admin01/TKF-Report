@@ -22,7 +22,7 @@ export default function DeckPage() {
       <div className="flex flex-col gap-8 print:gap-0">
         <TitleSlide meta={meta} />
         {slides.map((s) => (
-          <SlideRenderer key={s.block.id} slide={s} />
+          <SlideRenderer key={s.page} slide={s} />
         ))}
       </div>
     </main>

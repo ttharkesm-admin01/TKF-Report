@@ -25,7 +25,7 @@ export function CoverSlide({
         </p>
 
         <div className="mt-[2.5cqw] flex items-baseline gap-[3cqw]">
-          <span className="text-[9cqw] leading-none font-bold text-brand">{section.number}</span>
+          <span className="text-[9cqw] leading-[1.05] font-bold text-brand">{section.number}</span>
           <h1 className="text-[4.4cqw] leading-tight font-semibold text-ink">{section.title}</h1>
         </div>
 
