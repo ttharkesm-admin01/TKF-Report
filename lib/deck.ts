@@ -6,6 +6,7 @@
  */
 
 import sectionsConfig from '@/config/sections.json';
+import photosConfig from '@/config/photos.json';
 import roundConfig from '@/config/round.json';
 import { MONTHS, type BlockType, type Frequency } from '@/shared/schema';
 
@@ -101,22 +102,47 @@ function visibleRowKeys(block: RawBlock): string[] {
 
 /**
  * หั่นบล็อกเป็นหน้า ๆ · บล็อกทั่วไปได้หน้าเดียวเสมอ
- * monthly-matrix อ้างแถวด้วย key ของแถว · list-table อ้างด้วยลำดับแถวเป็นสตริง
+ * monthly-matrix อ้างแถวด้วย key ของแถว · ที่เหลืออ้างด้วยลำดับเป็นสตริง
  */
 function splitBlock(section: DeckSection, block: DeckBlock): DeckSlide[] {
-  if (block.type !== 'monthly-matrix' && block.type !== 'list-table') {
-    return [{ page: 0, section, block }];
+  const photoCount = (photosConfig.blocks as Record<string, unknown[]>)[block.id]?.length ?? 0;
+  const byIndex = (n: number) => Array.from({ length: n }, (_, i) => String(i));
+
+  let keys: string[];
+  let limit: number;
+
+  switch (block.type) {
+    case 'monthly-matrix':
+      keys = visibleRowKeys(block.raw);
+      limit = MAX_ROWS_PER_SLIDE;
+      break;
+    case 'list-table':
+      keys = byIndex(((block.raw.rows as unknown[] | undefined) ?? []).length);
+      limit = MAX_ROWS_PER_SLIDE;
+      break;
+    case 'photo-grid': {
+      // กริดเต็มหนึ่งหน้าตามที่ config กำหนด · เกินกว่านั้นขึ้นหน้าใหม่เอง
+      const l = block.raw.layout as { cols: number; rows: number; framesPerSlide: number };
+      keys = byIndex(photoCount);
+      limit = Math.max(1, l.cols * l.rows * l.framesPerSlide);
+      break;
+    }
+    case 'photo-set':
+      keys = byIndex(photoCount);
+      limit = Math.max(1, (block.raw.max as number | undefined) ?? 7);
+      break;
+    default:
+      return [{ page: 0, section, block }];
   }
 
-  const keys =
-    block.type === 'monthly-matrix'
-      ? visibleRowKeys(block.raw)
-      : (((block.raw.rows as unknown[] | undefined) ?? []).map((_, i) => String(i)));
-  if (keys.length <= MAX_ROWS_PER_SLIDE) return [{ page: 0, section, block }];
+  if (keys.length <= limit) return [{ page: 0, section, block }];
 
-  const pages = Math.ceil(keys.length / MAX_ROWS_PER_SLIDE);
-  // เกลี่ยให้ทุกหน้าแถวใกล้เคียงกัน ดีกว่าปล่อยหน้าสุดท้ายเหลือแถวเดียว
-  const per = Math.ceil(keys.length / pages);
+  const pages = Math.ceil(keys.length / limit);
+
+  // ตารางเกลี่ยให้ทุกหน้าแถวใกล้เคียงกัน ดีกว่าปล่อยหน้าสุดท้ายเหลือแถวเดียว
+  // แต่กริดรูปห้ามเกลี่ย — ต้องอัดเต็มหน้าตามจำนวนช่องที่ config กำหนด
+  // ไม่งั้นกรอบย่อยหายไปหนึ่งกรอบและช่องรูปเพี้ยนขนาดกันคนละหน้า
+  const per = block.type === 'photo-grid' ? limit : Math.ceil(keys.length / pages);
 
   return Array.from({ length: pages }, (_, i) => ({
     page: 0,
@@ -154,6 +180,9 @@ export const IMPLEMENTED: ReadonlySet<BlockType> = new Set<BlockType>([
   'monthly-matrix',
   'chart',
   'list-table',
+  'photo-grid',
+  'photo-set',
+  'scan',
 ]);
 
 export const isImplemented = (b: DeckBlock): boolean => IMPLEMENTED.has(b.type);

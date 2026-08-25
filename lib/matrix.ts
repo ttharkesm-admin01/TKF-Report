@@ -17,6 +17,9 @@ import {
   type MatrixRow,
   type ChartBlock,
   type ListTableBlock,
+  type PhotoGridBlock,
+  type PhotoSetBlock,
+  type ScanBlock,
   type TrendFacts,
   type UnitKey,
 } from '@/shared/schema';
@@ -29,6 +32,9 @@ import { findSlide, type DeckBlock } from './deck';
 export const asMatrix = (b: DeckBlock): MatrixBlock => b.raw as unknown as MatrixBlock;
 export const asChart = (b: DeckBlock): ChartBlock => b.raw as unknown as ChartBlock;
 export const asList = (b: DeckBlock): ListTableBlock => b.raw as unknown as ListTableBlock;
+export const asPhotoGrid = (b: DeckBlock): PhotoGridBlock => b.raw as unknown as PhotoGridBlock;
+export const asPhotoSet = (b: DeckBlock): PhotoSetBlock => b.raw as unknown as PhotoSetBlock;
+export const asScan = (b: DeckBlock): ScanBlock => b.raw as unknown as ScanBlock;
 
 export function matrixById(id: string): MatrixBlock | undefined {
   const slide = findSlide(id);

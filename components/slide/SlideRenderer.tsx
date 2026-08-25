@@ -3,8 +3,11 @@ import { ClosingSlide } from './ClosingSlide';
 import { MatrixSlide } from './MatrixSlide';
 import { ChartSlide } from './ChartSlide';
 import { ListTableSlide } from './ListTableSlide';
+import { PhotoGridSlide } from './PhotoGridSlide';
+import { PhotoSetSlide } from './PhotoSetSlide';
+import { ScanSlide } from './ScanSlide';
 import { PendingSlide } from './PendingSlide';
-import { asChart, asList, asMatrix } from '@/lib/matrix';
+import { asChart, asList, asMatrix, asPhotoGrid, asPhotoSet, asScan } from '@/lib/matrix';
 import { meta, type DeckSlide } from '@/lib/deck';
 
 /**
@@ -43,6 +46,28 @@ export function SlideRenderer({ slide }: { slide: DeckSlide }) {
       return (
         <ChartSlide section={section} block={asChart(block)} title={block.title} meta={meta} />
       );
+    case 'photo-grid':
+      return (
+        <PhotoGridSlide
+          section={section}
+          block={asPhotoGrid(block)}
+          title={block.title}
+          meta={meta}
+          part={part}
+        />
+      );
+    case 'photo-set':
+      return (
+        <PhotoSetSlide
+          section={section}
+          block={asPhotoSet(block)}
+          title={block.title}
+          meta={meta}
+          part={part}
+        />
+      );
+    case 'scan':
+      return <ScanSlide section={section} block={asScan(block)} title={block.title} meta={meta} />;
     default:
       return <PendingSlide section={section} block={block} meta={meta} />;
   }
