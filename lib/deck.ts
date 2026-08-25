@@ -99,11 +99,19 @@ function visibleRowKeys(block: RawBlock): string[] {
     .map((r) => r.key);
 }
 
-/** หั่นบล็อกเป็นหน้า ๆ · บล็อกทั่วไปได้หน้าเดียวเสมอ */
+/**
+ * หั่นบล็อกเป็นหน้า ๆ · บล็อกทั่วไปได้หน้าเดียวเสมอ
+ * monthly-matrix อ้างแถวด้วย key ของแถว · list-table อ้างด้วยลำดับแถวเป็นสตริง
+ */
 function splitBlock(section: DeckSection, block: DeckBlock): DeckSlide[] {
-  if (block.type !== 'monthly-matrix') return [{ page: 0, section, block }];
+  if (block.type !== 'monthly-matrix' && block.type !== 'list-table') {
+    return [{ page: 0, section, block }];
+  }
 
-  const keys = visibleRowKeys(block.raw);
+  const keys =
+    block.type === 'monthly-matrix'
+      ? visibleRowKeys(block.raw)
+      : (((block.raw.rows as unknown[] | undefined) ?? []).map((_, i) => String(i)));
   if (keys.length <= MAX_ROWS_PER_SLIDE) return [{ page: 0, section, block }];
 
   const pages = Math.ceil(keys.length / MAX_ROWS_PER_SLIDE);
@@ -145,6 +153,7 @@ export const IMPLEMENTED: ReadonlySet<BlockType> = new Set<BlockType>([
   'closing',
   'monthly-matrix',
   'chart',
+  'list-table',
 ]);
 
 export const isImplemented = (b: DeckBlock): boolean => IMPLEMENTED.has(b.type);

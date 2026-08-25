@@ -238,7 +238,17 @@
       "frequency": "monthly",
       "blocks": [
         { "type": "cover", "id": "c-vehicle", "mode": "auto" },
-        { "type": "list-table", "id": "t-vehicle", "title": "รถยนต์ส่วนกลาง · ทะเบียน / อายุสัญญา / ค่าเช่า / ผู้ครอบครอง", "mode": "carry" },
+        {
+          "type": "list-table", "id": "t-vehicle", "title": "รถยนต์ส่วนกลาง · ทะเบียน / อายุสัญญา / ค่าเช่า / ผู้ครอบครอง", "mode": "carry",
+          "_comment": "คอลัมน์มาจากชื่อหัวข้อเดิมตรง ๆ · rows ยังว่าง รอข้อมูลจริงจากผู้ใช้",
+          "columns": [
+            { "key": "plate",    "label": "ทะเบียน",      "width": 20 },
+            { "key": "contract", "label": "อายุสัญญา",     "width": 25 },
+            { "key": "rent",     "label": "ค่าเช่า", "unit": "baht", "width": 20 },
+            { "key": "holder",   "label": "ผู้ครอบครอง",   "width": 35 }
+          ],
+          "rows": []
+        },
         { "type": "photo-set", "id": "p-fuel", "title": "รายงานการใช้รถ และเบิกค่าเชื้อเพลิง", "mode": "manual", "max": 7, "captions": true },
         { "type": "scan", "id": "s-vehicle-check", "title": "แบบฟอร์มตรวจเช็คสภาพความพร้อมของรถก่อนใช้งาน", "mode": "manual" },
         { "type": "list-table", "id": "t-ticket", "title": "จำนวนใบสั่งรถยนต์ส่วนกลางโรงงาน", "mode": "manual" }

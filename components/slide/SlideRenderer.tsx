@@ -2,8 +2,9 @@ import { CoverSlide } from './CoverSlide';
 import { ClosingSlide } from './ClosingSlide';
 import { MatrixSlide } from './MatrixSlide';
 import { ChartSlide } from './ChartSlide';
+import { ListTableSlide } from './ListTableSlide';
 import { PendingSlide } from './PendingSlide';
-import { asChart, asMatrix } from '@/lib/matrix';
+import { asChart, asList, asMatrix } from '@/lib/matrix';
 import { meta, type DeckSlide } from '@/lib/deck';
 
 /**
@@ -23,6 +24,16 @@ export function SlideRenderer({ slide }: { slide: DeckSlide }) {
         <MatrixSlide
           section={section}
           block={asMatrix(block)}
+          title={block.title}
+          meta={meta}
+          part={part}
+        />
+      );
+    case 'list-table':
+      return (
+        <ListTableSlide
+          section={section}
+          block={asList(block)}
           title={block.title}
           meta={meta}
           part={part}
