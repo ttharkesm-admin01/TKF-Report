@@ -12,11 +12,18 @@ export interface Photo {
   src: string;
   file: string;
   caption: string | null;
+  /** ซ่อนจากสไลด์ แต่ยังอยู่ในรายการเพื่อให้หน้า /arrange เอากลับมาได้ */
+  hidden?: boolean;
 }
 
 const table = photosConfig.blocks as Record<string, Photo[]>;
 
-export const photosOf = (blockId: string): Photo[] => table[blockId] ?? [];
+/** รูปที่ขึ้นสไลด์จริง */
+export const photosOf = (blockId: string): Photo[] =>
+  (table[blockId] ?? []).filter((p) => !p.hidden);
+
+/** รูปทั้งหมดรวมที่ซ่อนไว้ — ใช้เฉพาะหน้าจัดรูป */
+export const allPhotosOf = (blockId: string): Photo[] => table[blockId] ?? [];
 
 export const photoRound = photosConfig.round;
 

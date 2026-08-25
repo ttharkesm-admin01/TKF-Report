@@ -16,9 +16,8 @@ build/
 *credentials*.json
 *service-account*.json
 
-# รูปภาพและไฟล์ต้นฉบับ — เก็บบน Google Drive ไม่ใช่ใน git
+# ไฟล์ต้นฉบับรายเดือน — ใหญ่เกินและไม่ใช่ซอร์ส
 uploads/
-photos/
 *.pptx
 *.xlsx
 
@@ -35,6 +34,8 @@ Thumbs.db
 next-env.d.ts
 *.tsbuildinfo
 
-# รูปประจำเดือน — ไฟล์ใหญ่ ไม่เก็บใน git
+# รูปประจำเดือน — ไฟล์ใหญ่ ไม่เก็บใน git · แต่คู่มือในโฟลเดอร์ต้องติดไปด้วย
+# อย่าเขียนเป็น photos/ เฉย ๆ เพราะ git จะไม่เข้าไปในโฟลเดอร์ที่ถูกตัดทั้งอัน
+# แล้วบรรทัด ! ข้างล่างจะไม่มีผล
 /public/photos/*
 !/public/photos/README.md

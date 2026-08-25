@@ -105,7 +105,10 @@ function visibleRowKeys(block: RawBlock): string[] {
  * monthly-matrix อ้างแถวด้วย key ของแถว · ที่เหลืออ้างด้วยลำดับเป็นสตริง
  */
 function splitBlock(section: DeckSection, block: DeckBlock): DeckSlide[] {
-  const photoCount = (photosConfig.blocks as Record<string, unknown[]>)[block.id]?.length ?? 0;
+  // นับเฉพาะรูปที่ไม่ได้ซ่อน — รูปที่ซ่อนไม่ควรดันให้เกิดหน้าใหม่
+  const photoCount = (
+    (photosConfig.blocks as Record<string, Array<{ hidden?: boolean }>>)[block.id] ?? []
+  ).filter((p) => !p.hidden).length;
   const byIndex = (n: number) => Array.from({ length: n }, (_, i) => String(i));
 
   let keys: string[];
