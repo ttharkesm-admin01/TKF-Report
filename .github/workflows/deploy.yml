@@ -38,11 +38,10 @@ jobs:
           # เว็บอยู่ใต้ /TKF-Report ไม่ใช่รากโดเมน ต้องบอก Next ไม่งั้นไฟล์ทั้งหมด 404
           PAGES_BASE_PATH: /TKF-Report
 
-      # enablement: true = เปิด Pages ให้เองถ้ายังไม่ได้เปิด
-      # ไม่ต้องเข้าไปตั้งใน Settings ก่อน push ครั้งแรก
+      # ต้องเปิด Pages ด้วยมือครั้งเดียวก่อน: Settings → Pages → Source = GitHub Actions
+      # เคยลอง enablement: true ให้ workflow เปิดเอง แต่ GITHUB_TOKEN สิทธิ์ไม่ถึง
+      # ("Create Pages site failed: Resource not accessible by integration")
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: out

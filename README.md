@@ -35,8 +35,9 @@ push ขึ้นบรานช์ `claude/tkf-report-setup-kd6ejg` → GitHub 
 
 URL ที่ได้: `https://ttharkesm-admin01.github.io/TKF-Report/`
 
-workflow ตั้ง `enablement: true` ไว้ ปกติจึงเปิด Pages ให้เอง
-ถ้า error ตรงขั้น configure-pages ให้เข้า **Settings → Pages → Source** เลือก **GitHub Actions** แล้วรันซ้ำ
+**ครั้งแรกต้องเปิด Pages ด้วยมือก่อน 1 ครั้ง** เข้า **Settings → Pages → Source** เลือก **GitHub Actions**
+(ให้ workflow เปิดเองไม่ได้ — `GITHUB_TOKEN` ไม่มีสิทธิ์สร้าง Pages site)
+ทำครั้งเดียวจบ หลังจากนั้น push แล้วเว็บอัปเดตเอง
 
 ### ข้อควรรู้
 
