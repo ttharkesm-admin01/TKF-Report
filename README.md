@@ -28,6 +28,24 @@ npm run typecheck
 
 หน้ากระดาษที่พิมพ์ออกมาเป็น 960 × 540 pt (13.333 × 7.5 นิ้ว) เท่ากับสไลด์ PowerPoint จอกว้างพอดี
 
+## ขึ้นเว็บ
+
+push ขึ้นบรานช์ `claude/tkf-report-setup-kd6ejg` → GitHub Actions build แล้ว deploy ให้เอง
+ไม่ต้องสั่งอะไรเพิ่ม ดูสถานะที่แท็บ **Actions** ของรีโป
+
+URL ที่ได้: `https://ttharkesm-admin01.github.io/TKF-Report/`
+
+workflow ตั้ง `enablement: true` ไว้ ปกติจึงเปิด Pages ให้เอง
+ถ้า error ตรงขั้น configure-pages ให้เข้า **Settings → Pages → Source** เลือก **GitHub Actions** แล้วรันซ้ำ
+
+### ข้อควรรู้
+
+- **เว็บที่ได้เป็นสาธารณะ** ใครมี URL ก็เปิดได้ GitHub Pages ไม่มีระบบล็อกอินกั้น
+  (มีเฉพาะแพ็กเกจ Enterprise) ถ้าต้องกั้น ต้องย้ายไปโฮสต์อื่น เช่น Cloudflare Pages + Access
+- **รูปไม่ได้อยู่ใน git** สไลด์รูปบนเว็บจึงขึ้นเป็นช่องว่าง
+  ถ้าอยากให้มีรูปบนเว็บ ต้องเอารูปเข้า git (ปลด `/public/photos/*` ใน `.gitignore`)
+  แนะนำย่อเหลือ ~1200px คุณภาพ 70 แล้วลบรอบเก่าทิ้งเมื่อไม่ใช้ ขนาดรีโปจะได้ไม่บานปลาย
+
 ## เปลี่ยนเดือนที่ทำรายงาน
 
 แก้ `config/round.json` ที่เดียว ทั้งเล่มขยับตาม

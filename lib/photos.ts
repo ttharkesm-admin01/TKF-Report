@@ -16,7 +16,15 @@ export interface Photo {
   hidden?: boolean;
 }
 
-const table = photosConfig.blocks as Record<string, Photo[]>;
+// GitHub Pages เสิร์ฟใต้ /<ชื่อรีโป> · <img> ธรรมดาไม่ได้เติมให้เหมือน next/image
+const prefix = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+
+const table = Object.fromEntries(
+  Object.entries(photosConfig.blocks as Record<string, Photo[]>).map(([id, list]) => [
+    id,
+    list.map((p) => ({ ...p, src: prefix + p.src })),
+  ]),
+) as Record<string, Photo[]>;
 
 /** รูปที่ขึ้นสไลด์จริง */
 export const photosOf = (blockId: string): Photo[] =>
