@@ -4,12 +4,18 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { allPhotosOf, expectedFolder } from '@/lib/photos';
 import { photoBlocks } from '@/lib/photoBlocks';
+import { humanSize, type Prepared } from '@/lib/resize';
+import type { CommitFile } from '@/lib/github';
+import { PhotoDrop } from '@/components/arrange/PhotoDrop';
+import { CommitPanel } from '@/components/arrange/CommitPanel';
 
 interface Item {
   file: string;
   src: string;
   caption: string;
   hidden: boolean;
+  /** มีค่า = เพิ่งลากเข้ามา ยังไม่ได้ส่งเข้ารีโป */
+  pending?: Prepared;
 }
 
 const storageKey = (blockId: string) => `arrange:${blockId}`;
@@ -91,6 +97,18 @@ export default function ArrangePage() {
   const patch = (i: number, p: Partial<Item>) =>
     setItems((prev) => prev.map((it, k) => (k === i ? { ...it, ...p } : it)));
 
+  const addPrepared = (added: Prepared[]) =>
+    setItems((prev) => [
+      ...prev,
+      ...added.map((p) => ({
+        file: p.name,
+        src: p.previewUrl,
+        caption: '',
+        hidden: false,
+        pending: p,
+      })),
+    ]);
+
   const download = () => {
     const blob = new Blob([JSON.stringify(toArrangeFile(items), null, 2) + '\n'], {
       type: 'application/json',
@@ -108,19 +126,35 @@ export default function ArrangePage() {
     setTimeout(() => setSaved(''), 2000);
   };
 
-  const resetToFilename = () => {
+  const resetToFilename = () =>
     setItems((prev) =>
       [...prev].sort((a, b) => a.file.localeCompare(b.file, 'en', { numeric: true })),
     );
-  };
 
   const shown = items.filter((i) => !i.hidden).length;
+  const pending = items.filter((i) => i.pending);
 
   // เลขที่โชว์ต้องตรงกับเลขบนสไลด์จริง — รูปที่ซ่อนไม่กินเลข
   const slideNumbers = (() => {
     let n = 0;
     return items.map((i) => (i.hidden ? null : ++n));
   })();
+
+  const folder = blockId ? expectedFolder(blockId) : '';
+
+  // ส่งรูปใหม่ไปพร้อม arrange.json เสมอ ลำดับกับคำบรรยายจะได้ไม่หลุดจากกัน
+  const commitFilesList: CommitFile[] = items.length
+    ? [
+        ...pending.map((i) => ({ path: folder + i.file, content: i.pending!.blob })),
+        {
+          path: folder + 'arrange.json',
+          content: JSON.stringify(toArrangeFile(items), null, 2) + '\n',
+        },
+      ]
+    : [];
+
+  const pendingBytes = pending.reduce((n, i) => n + i.pending!.blob.size, 0);
+  const savedBytes = pending.reduce((n, i) => n + i.pending!.originalSize - i.pending!.blob.size, 0);
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
@@ -129,12 +163,9 @@ export default function ArrangePage() {
       </Link>
       <h1 className="mt-3 text-2xl font-bold text-brand-deep">จัดรูป</h1>
       <p className="mt-2 text-sm text-ink-soft">
-        ลากสลับตำแหน่ง ซ่อนรูปที่ไม่เอา พิมพ์คำบรรยาย แล้วกดบันทึกไฟล์
-        <br />
-        ปกติไม่ต้องมาหน้านี้เลย — ระบบเรียงตามชื่อไฟล์ให้อยู่แล้ว ใช้เมื่ออยากสลับบางรูปเท่านั้น
+        ลากรูปใส่ จัดลำดับ ซ่อนรูปที่ไม่เอา ใส่คำบรรยาย แล้วกดส่งเข้าระบบ
       </p>
 
-      {/* ---------- เลือกบล็อก ---------- */}
       <label className="mt-6 block text-sm font-medium">
         บล็อกรูป
         <select
@@ -150,47 +181,50 @@ export default function ArrangePage() {
         </select>
       </label>
 
+      <p className="mt-2 text-xs text-ink-soft">
+        ลงที่ <span className="font-mono">{folder}</span>
+      </p>
+
+      <div className="mt-4">
+        <PhotoDrop existingNames={items.map((i) => i.file)} onAdd={addPrepared} />
+      </div>
+
       {items.length === 0 ? (
-        <div className="mt-8 rounded border border-dashed border-line px-6 py-10 text-center text-ink-soft">
-          <p className="text-lg font-semibold">ยังไม่มีรูปในบล็อกนี้</p>
-          <p className="mt-2 text-sm">
-            วางไฟล์ที่ <span className="font-mono">{blockId && expectedFolder(blockId)}</span>{' '}
-            แล้วสั่ง <span className="font-mono">npm run photos</span>
-          </p>
-        </div>
+        <p className="mt-8 text-center text-ink-soft">ยังไม่มีรูปในบล็อกนี้</p>
       ) : (
         <>
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            <button
-              onClick={download}
-              className="rounded bg-brand px-4 py-2 font-semibold text-white hover:bg-brand-deep"
-            >
-              บันทึกไฟล์ arrange.json
-            </button>
-            <button
-              onClick={copy}
-              className="rounded border border-brand px-4 py-2 font-semibold text-brand hover:bg-brand-soft"
-            >
-              คัดลอก JSON
-            </button>
+          <div className="mt-5 flex flex-wrap items-center gap-3 text-sm">
             <button
               onClick={resetToFilename}
               className="rounded border border-line px-4 py-2 text-ink-soft hover:bg-neutral-50"
             >
               เรียงตามชื่อไฟล์ใหม่
             </button>
-            <span className="text-sm text-ink-soft">
+            <button
+              onClick={download}
+              className="rounded border border-line px-4 py-2 text-ink-soft hover:bg-neutral-50"
+            >
+              บันทึก arrange.json
+            </button>
+            <button
+              onClick={copy}
+              className="rounded border border-line px-4 py-2 text-ink-soft hover:bg-neutral-50"
+            >
+              คัดลอก JSON
+            </button>
+            <span className="text-ink-soft">
               {shown} รูปขึ้นสไลด์
               {items.length - shown > 0 && ` · ซ่อน ${items.length - shown}`}
+              {pending.length > 0 && (
+                <span className="ml-2 font-medium text-accent">
+                  ใหม่ {pending.length} รูป · รวม {humanSize(pendingBytes)}
+                  {/* ภาพสแกนที่เล็กอยู่แล้วอาจไม่ได้เล็กลง จึงบอกเฉพาะตอนที่ประหยัดจริง */}
+                  {savedBytes > 0 && ` (เล็กลง ${humanSize(savedBytes)})`}
+                </span>
+              )}
               {saved && <span className="ml-2 font-medium text-brand">{saved}</span>}
             </span>
           </div>
-
-          <p className="mt-3 rounded bg-brand-soft px-4 py-3 text-sm">
-            เอาไฟล์ที่ได้ไปวางที่{' '}
-            <span className="font-mono">{expectedFolder(blockId)}arrange.json</span> แล้วสั่ง{' '}
-            <span className="font-mono">npm run photos</span>
-          </p>
 
           <ol
             className="mt-6 grid gap-3"
@@ -207,7 +241,11 @@ export default function ArrangePage() {
                   setDragFrom(null);
                 }}
                 className={`cursor-grab rounded border p-2 active:cursor-grabbing ${
-                  it.hidden ? 'border-dashed border-line bg-neutral-50 opacity-50' : 'border-line'
+                  it.hidden
+                    ? 'border-dashed border-line bg-neutral-50 opacity-50'
+                    : it.pending
+                      ? 'border-accent'
+                      : 'border-line'
                 }`}
               >
                 <div className="relative overflow-hidden rounded bg-neutral-100">
@@ -216,6 +254,11 @@ export default function ArrangePage() {
                   <span className="absolute top-0 left-0 bg-black/60 px-1.5 text-xs text-white">
                     {slideNumbers[i] ?? '—'}
                   </span>
+                  {it.pending && (
+                    <span className="absolute top-0 right-0 bg-accent px-1.5 text-xs font-semibold text-ink">
+                      ใหม่
+                    </span>
+                  )}
                 </div>
 
                 <p className="mt-1 truncate font-mono text-[11px] text-ink-soft" title={it.file}>
@@ -256,6 +299,19 @@ export default function ArrangePage() {
               </li>
             ))}
           </ol>
+
+          <CommitPanel
+            files={commitFilesList}
+            message={
+              pending.length
+                ? `Add ${pending.length} photos to ${blockId}`
+                : `Update photo arrangement for ${blockId}`
+            }
+            onDone={() =>
+              // ส่งไปแล้วไม่ต้องส่งซ้ำ · ตัวอย่างรูปยังดูได้จนกว่าจะปิดหน้า
+              setItems((prev) => prev.map((i) => ({ ...i, pending: undefined })))
+            }
+          />
         </>
       )}
     </main>
