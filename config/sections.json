@@ -185,7 +185,7 @@
             { "key": "boiler-ash", "label": "ปริมาณขี้เถ้าบอยเลอร์", "unit": "kg", "note": "ก.พ. 2569 ไม่มีรายการ — ควรตรวจสอบว่าบอยเลอร์หยุดหรือบันทึกตกหล่น", "values": [23980,"none",26210,25840,50945,53940,24195,null,null,null,null,null] },
             { "key": "recycle", "label": "ปริมาณขยะรีไซเคิล", "unit": "kg", "values": ["none",12250,62960,14130,29315,6930,39185,null,null,null,null,null] },
             { "key": "hazard-dispose", "label": "ปริมาณของเสียอันตราย (กำจัด)", "unit": "kg", "hideIfEmpty": false, "note": "ไม่มีรายการทั้งปี — ควรใส่หมายเหตุอธิบาย auditor มักถาม", "values": ["none","none","none","none","none","none","none",null,null,null,null,null] },
-            { "key": "hazard-sell", "label": "ปริมาณของเสียอันตราย (ขาย)", "unit": "kg", "values": ["none","none",6145,1490,1665,"none",2155,null,null,null,null,null] }
+            { "key": "hazard-sell", "label": "ปริมาณของเสียอันตราย (ขาย)", "unit": "kg", "values": ["none","none",6145,1490,1665,"none",null,null,null,null,null,null] }
           ]
         },
         {
