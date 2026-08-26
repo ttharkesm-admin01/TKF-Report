@@ -135,7 +135,7 @@
           "highlightLatest": true,
           "showTotalRow": true,
           "rows": [
-            { "key": "guest", "label": "จำนวนผู้ใช้บริการ", "unit": "person", "values": [null,null,null,null,null,null,null,null,null,null,null,null] }
+            { "key": "guest", "label": "จำนวนผู้ใช้บริการ", "unit": "person", "values": [null,null,null,null,null,null,111,null,null,null,null,null] }
           ]
         }
       ]
@@ -155,10 +155,10 @@
           "highlightLatest": true,
           "showTotalRow": true,
           "rows": [
-            { "key": "room1", "label": "ห้องประชุม 1", "unit": "count", "values": [null,null,null,null,null,null,null,null,null,null,null,null] },
-            { "key": "room2", "label": "ห้องประชุม 2", "unit": "count", "values": [null,null,null,null,null,null,null,null,null,null,null,null] },
-            { "key": "tpm", "label": "ศูนย์การเรียนรู้ TPM", "unit": "count", "values": [null,null,null,null,null,null,null,null,null,null,null,null] },
-            { "key": "warroom", "label": "War Room", "unit": "count", "values": [null,null,null,null,null,null,null,null,null,null,null,null] }
+            { "key": "room1", "label": "ห้องประชุม 1", "unit": "count", "values": [null,null,null,null,null,null,111,null,null,null,null,null] },
+            { "key": "room2", "label": "ห้องประชุม 2", "unit": "count", "values": [null,null,null,null,null,null,111,null,null,null,null,null] },
+            { "key": "tpm", "label": "ศูนย์การเรียนรู้ TPM", "unit": "count", "values": [null,null,null,null,null,null,111,null,null,null,null,null] },
+            { "key": "warroom", "label": "War Room", "unit": "count", "values": [null,null,null,null,null,null,111,null,null,null,null,null] }
           ]
         },
         { "type": "photo-set", "id": "p-meet-equip", "title": "ความพร้อมอุปกรณ์สำนักงาน/โสตทัศนูปกรณ์", "mode": "carry", "max": 7, "captions": true }
@@ -184,8 +184,8 @@
             { "key": "feed-spoil", "label": "ปริมาณเศษอาหารสัตว์เสื่อมคุณภาพ", "unit": "kg", "values": [1530,5690,4005,2020,4000,4365,7980,null,null,null,null,null] },
             { "key": "boiler-ash", "label": "ปริมาณขี้เถ้าบอยเลอร์", "unit": "kg", "note": "ก.พ. 2569 ไม่มีรายการ — ควรตรวจสอบว่าบอยเลอร์หยุดหรือบันทึกตกหล่น", "values": [23980,"none",26210,25840,50945,53940,24195,null,null,null,null,null] },
             { "key": "recycle", "label": "ปริมาณขยะรีไซเคิล", "unit": "kg", "values": ["none",12250,62960,14130,29315,6930,39185,null,null,null,null,null] },
-            { "key": "hazard-dispose", "label": "ปริมาณของเสียอันตราย (กำจัด)", "unit": "kg", "hideIfEmpty": false, "note": "ไม่มีรายการทั้งปี — ควรใส่หมายเหตุอธิบาย auditor มักถาม", "values": ["none","none","none","none","none","none","none",null,null,null,null,null] },
-            { "key": "hazard-sell", "label": "ปริมาณของเสียอันตราย (ขาย)", "unit": "kg", "values": ["none","none",6145,1490,1665,"none",null,null,null,null,null,null] }
+            { "key": "hazard-dispose", "label": "ปริมาณของเสียอันตราย (กำจัด)", "unit": "kg", "hideIfEmpty": false, "note": "ไม่มีรายการทั้งปี — ควรใส่หมายเหตุอธิบาย auditor มักถาม", "values": ["none","none","none","none","none","none",111,null,null,null,null,null] },
+            { "key": "hazard-sell", "label": "ปริมาณของเสียอันตราย (ขาย)", "unit": "kg", "values": ["none","none",6145,1490,1665,"none",111,null,null,null,null,null] }
           ]
         },
         {
@@ -230,7 +230,7 @@
             { "key": "carton", "label": "เศษกล่องกระดาษคละ", "unit": "kg", "rate": 5, "values": ["none",1075,545,495,200,900,520,null,null,null,null,null] },
             { "key": "plastic", "label": "เศษพลาสติกคละ", "unit": "kg", "rate": 4.5, "values": ["none",395,3295,"none",335,1735,285,null,null,null,null,null] },
             { "key": "bigbag", "label": "ถุง Big Bag ชำรุด", "unit": "kg", "rate": 12.5, "values": ["none",1185,635,900,875,1310,995,null,null,null,null,null] },
-            { "key": "belt", "label": "สายพานลำเลียงชำรุด", "unit": "kg", "rate": 0.5, "hideIfEmpty": true, "values": ["none","none","none","none","none","none","none",null,null,null,null,null] }
+            { "key": "belt", "label": "สายพานลำเลียงชำรุด", "unit": "kg", "rate": 0.5, "hideIfEmpty": true, "values": ["none","none","none","none","none","none",111,null,null,null,null,null] }
           ]
         },
         { "type": "chart", "id": "ch-sale-nonmetal", "title": "กราฟเปรียบเทียบ กลุ่มอโลหะ", "mode": "auto", "sourceBlockId": "m-sale-nonmetal", "chartType": "grouped-bar" },
@@ -244,8 +244,8 @@
           "showTotalRow": true,
           "showAverageColumn": true,
           "rows": [
-            { "key": "steel200", "label": "ถังเหล็ก 200 ลิตร ชำรุด (ถังน้ำมันเครื่อง ถังจารบี)", "unit": "unit", "rate": 59, "hideIfEmpty": true, "values": ["none","none","none","none","none","none","none",null,null,null,null,null] },
-            { "key": "plastic25", "label": "ถังพลาสติก 25 ลิตร สภาพดี", "unit": "unit", "rate": 12, "hideIfEmpty": true, "values": ["none","none","none","none","none","none","none",null,null,null,null,null] },
+            { "key": "steel200", "label": "ถังเหล็ก 200 ลิตร ชำรุด (ถังน้ำมันเครื่อง ถังจารบี)", "unit": "unit", "rate": 59, "hideIfEmpty": true, "values": ["none","none","none","none","none","none",111,null,null,null,null,null] },
+            { "key": "plastic25", "label": "ถังพลาสติก 25 ลิตร สภาพดี", "unit": "unit", "rate": 12, "hideIfEmpty": true, "values": ["none","none","none","none","none","none",111,null,null,null,null,null] },
             { "key": "plastic100", "label": "ถังพลาสติก 100 ลิตร สภาพดี", "unit": "unit", "rate": 89.5, "values": ["none","none",360,130,83,"none",147,null,null,null,null,null] },
             { "key": "plastic200", "label": "ถังพลาสติก 200 ลิตร สภาพดี", "unit": "unit", "rate": 139.5, "values": ["none","none",44,"none",30,"none",32,null,null,null,null,null] },
             { "key": "ibc-steel", "label": "ถังพลาสติก 1,000 ลิตร สภาพดี (ขาเหล็ก)", "unit": "unit", "rate": 860.5, "values": ["none","none",25,19,7,"none",13,null,null,null,null,null] },
@@ -291,20 +291,21 @@
             { "key": "pest", "label": "ค่าเหยื่อสด - Pest Control", "unit": "baht", "values": [200,"none",811,200,"none",1278,1200,null,null,null,null,null] },
             { "key": "assoc", "label": "ค่าบำรุงสมาคมผู้ผลิตอาหารสัตว์ไทย", "unit": "baht", "note": "จ่าย 2 ครั้งในปีเดียว (เม.ย. และ ก.ค.) ควรตรวจสอบ", "values": ["none","none","none",128275,"none","none",172465,null,null,null,null,null] },
             { "key": "groundwater", "label": "ค่าน้ำบาดาล", "unit": "baht", "values": [31523,"none","none",30548,"none","none",28949,null,null,null,null,null] },
-            { "key": "land-tax", "label": "ภาษีที่ดินและสิ่งปลูกสร้าง", "unit": "baht", "note": "จ่ายครั้งเดียวต่อปี", "values": ["none","none","none","none",707437,"none","none",null,null,null,null,null] },
+            { "key": "land-tax", "label": "ภาษีที่ดินและสิ่งปลูกสร้าง", "unit": "baht", "note": "จ่ายครั้งเดียวต่อปี", "values": ["none","none","none","none",707437,"none",111,null,null,null,null,null] },
             { "key": "license", "label": "ค่าใบอนุญาต", "unit": "baht", "values": ["none","none",1000,731,20,"none",1000,null,null,null,null,null] },
             { "key": "community", "label": "ค่ากิจกรรมชุมชน", "unit": "baht", "values": ["none",46436,36404,51106,20125,39573,24104,null,null,null,null,null] },
-            { "key": "advance", "label": "เงินยืมทดลอง", "unit": "baht", "values": [175350,115000,93200,104234,26500,112000,"none",null,null,null,null,null] },
-            { "key": "sys-check", "label": "ค่าตรวจระบบ", "unit": "baht", "values": ["none","none",27820,"none","none","none","none",null,null,null,null,null] },
-            { "key": "sign-tax", "label": "ค่าภาษีป้าย", "unit": "baht", "values": ["none","none",33805,"none","none","none","none",null,null,null,null,null] },
-            { "key": "vehicle-rent", "label": "ค่าเช่ายานพาหนะ", "unit": "baht", "values": ["none",15205,29956,"none","none",13275,"none",null,null,null,null,null] },
-            { "key": "water", "label": "น้ำดื่มถังธารตะวัน", "unit": "baht", "values": [23220,15130,12820,15947,13760,16715,"none",null,null,null,null,null] },
+            { "key": "advance", "label": "เงินยืมทดลอง", "unit": "baht", "values": [175350,115000,93200,104234,26500,112000,111,null,null,null,null,null] },
+            { "key": "sys-check", "label": "ค่าตรวจระบบ", "unit": "baht", "values": ["none","none",27820,"none","none","none",111,null,null,null,null,null] },
+            { "key": "sign-tax", "label": "ค่าภาษีป้าย", "unit": "baht", "values": ["none","none",33805,"none","none","none",111,null,null,null,null,null] },
+            { "key": "vehicle-rent", "label": "ค่าเช่ายานพาหนะ", "unit": "baht", "values": ["none",15205,29956,"none","none",13275,111,null,null,null,null,null] },
+            { "key": "water", "label": "น้ำดื่มถังธารตะวัน", "unit": "baht", "values": [23220,15130,12820,15947,13760,16715,111,null,null,null,null,null] },
             { "key": "waste-service", "label": "ค่าบริการกำจัดขยะและสิ่งปฏิกูล", "unit": "baht", "values": ["none",40000,20000,20000,20000,20000,20000,null,null,null,null,null] },
-            { "key": "laundry", "label": "ค่าบริการซัก รีด", "unit": "baht", "values": [2170,1550,1550,2325,1395,"none","none",null,null,null,null,null] },
-            { "key": "training", "label": "ค่าอบรม", "unit": "baht", "values": ["none","none",14535,"none","none","none","none",null,null,null,null,null] },
-            { "key": "gas", "label": "ค่าแก๊สประกอบอาหาร", "unit": "baht", "values": ["none","none",430,"none","none","none","none",null,null,null,null,null] },
-            { "key": "flight", "label": "ค่าเครื่องบิน", "unit": "baht", "values": [10600,"none","none",7200,"none","none","none",null,null,null,null,null] },
-            { "key": "other", "label": "ค่าอื่น ๆ, เงินรางวัล, กิจกรรมชมรม", "unit": "baht", "values": ["none",2098,5986,8884,15000,42845,6399,null,null,null,null,null] }
+            { "key": "laundry", "label": "ค่าบริการซัก รีด", "unit": "baht", "values": [2170,1550,1550,2325,1395,"none",111,null,null,null,null,null] },
+            { "key": "training", "label": "ค่าอบรม", "unit": "baht", "values": ["none","none",14535,"none","none","none",111,null,null,null,null,null] },
+            { "key": "gas", "label": "ค่าแก๊สประกอบอาหาร", "unit": "baht", "values": ["none","none",430,"none","none","none",111,null,null,null,null,null] },
+            { "key": "flight", "label": "ค่าเครื่องบิน", "unit": "baht", "values": [10600,"none","none",7200,"none","none",111,null,null,null,null,null] },
+            { "key": "other", "label": "ค่าอื่น ๆ, เงินรางวัล, กิจกรรมชมรม", "unit": "baht", "values": ["none",2098,5986,8884,15000,42845,6399,null,null,null,null,null] },
+            { "key": "custom-1", "label": "กกกกกกก", "unit": "baht", "values": [null,null,null,null,null,null,55555,null,null,null,null,null] }
           ]
         },
         {
@@ -319,7 +320,7 @@
             { "key": "traffic", "label": "ค่าบริการจราจร และสายตรวจโรงงาน", "unit": "baht", "values": ["none",3000,1500,1500,1500,1500,1500,null,null,null,null,null] },
             { "key": "garden", "label": "ค่าบริการจ้างเหมา - งานสวน", "unit": "baht", "values": [60800,60800,60800,60800,60800,60800,60800,null,null,null,null,null] },
             { "key": "sewage", "label": "งานจ้างเหมากำจัดสิ่งปฏิกูล", "unit": "baht", "values": [16000,16000,16000,24000,40000,32000,24000,null,null,null,null,null] },
-            { "key": "biologist", "label": "ค่าประเมินของนักชีววิทยา", "unit": "baht", "values": ["none","none",14500,"none","none",14500,"none",null,null,null,null,null] },
+            { "key": "biologist", "label": "ค่าประเมินของนักชีววิทยา", "unit": "baht", "values": ["none","none",14500,"none","none",14500,111,null,null,null,null,null] },
             { "key": "silo-wash", "label": "ค่าซักผ้าชุดพนักงานไซโล", "unit": "baht", "values": [24000,24000,24000,24000,24000,24000,24000,null,null,null,null,null] },
             { "key": "office", "label": "ค่าใช้จ่ายสำนักงาน (อุปกรณ์, ทำความสะอาด, อะไหล่ซ่อม)", "unit": "baht", "values": [101969,53658,117834,32124,120774,67767,80450,null,null,null,null,null] }
           ]
