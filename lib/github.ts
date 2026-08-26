@@ -151,3 +151,42 @@ export async function commitFiles(
 
 /** ลิงก์สร้างโทเคนที่เลือกสิทธิ์ให้เสร็จแล้ว */
 export const tokenPageUrl = 'https://github.com/settings/personal-access-tokens/new';
+
+/** ที่เก็บโทเคนในเบราว์เซอร์ — ใช้ร่วมกันทุกหน้า */
+export const TOKEN_KEY = 'github-token';
+
+export const storedToken = (): string => {
+  try {
+    return localStorage.getItem(TOKEN_KEY) ?? '';
+  } catch {
+    return '';
+  }
+};
+
+/**
+ * อ่านไฟล์ตัวปัจจุบันจากบรานช์ — **ไม่ใช่** ตัวที่ฝังมาตอน build
+ *
+ * เว็บเป็นไฟล์นิ่ง `config/sections.json` ที่ import เข้ามาจึงเป็นภาพนิ่งของตอน build
+ * ถ้าเอาตัวนั้นมาเป็นฐานแล้วเขียนทับ ข้อมูลที่คนอื่น (หรือตัวเราเองเมื่อกี้) ส่งไป
+ * ระหว่างที่เว็บยังไม่ build ใหม่ จะหายไปเงียบ ๆ — ต้องอ่านของสดตอนจะเขียนเสมอ
+ *
+ * คืน null ถ้ายังไม่มีไฟล์นั้นในรีโป
+ */
+export async function readJsonFile<T>(token: string, path: string): Promise<T | null> {
+  const { owner, repo: name, branch } = repo;
+  const url = `/repos/${owner}/${name}/contents/${path}?ref=${encodeURIComponent(branch)}`;
+
+  const res = await fetch(API + url, {
+    headers: {
+      Accept: 'application/vnd.github.raw+json',
+      Authorization: `Bearer ${token}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+  });
+
+  if (res.status === 404) return null;
+  if (res.status === 401) throw new Error('โทเคนไม่ถูกต้องหรือหมดอายุแล้ว');
+  if (!res.ok) throw new Error(`อ่าน ${path} จาก GitHub ไม่ได้ (${res.status})`);
+
+  return JSON.parse(await res.text()) as T;
+}

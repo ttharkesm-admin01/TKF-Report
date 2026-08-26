@@ -1,9 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { commitFiles, repo, tokenPageUrl, type CommitFile, type CommitProgress } from '@/lib/github';
-
-const TOKEN_KEY = 'github-token';
+import {
+  TOKEN_KEY,
+  commitFiles,
+  repo,
+  storedToken,
+  tokenPageUrl,
+  type CommitFile,
+  type CommitProgress,
+} from '@/lib/github';
 
 /**
  * ส่งรูปเข้ารีโป
@@ -13,12 +19,19 @@ const TOKEN_KEY = 'github-token';
  * ที่จำกัดเฉพาะรีโปนี้ สิทธิ์ Contents เท่านั้น และตั้งวันหมดอายุไว้
  */
 export function CommitPanel({
-  files,
+  count,
+  getFiles,
   message,
   disabled,
   onDone,
 }: {
-  files: CommitFile[];
+  /** จำนวนไฟล์ที่จะส่ง — ไว้โชว์บนปุ่มเท่านั้น */
+  count: number;
+  /**
+   * ประกอบไฟล์ตอนกดส่ง ไม่ใช่ตอน render
+   * หน้าที่ต้องอ่านของสดจาก GitHub ก่อนเขียนทับจะได้ทำตรงนี้ได้
+   */
+  getFiles: (token: string) => Promise<CommitFile[]>;
   message: string;
   disabled?: boolean;
   onDone: () => void;
@@ -30,11 +43,7 @@ export function CommitPanel({
   const [result, setResult] = useState<{ url: string } | null>(null);
 
   useEffect(() => {
-    try {
-      setToken(localStorage.getItem(TOKEN_KEY) ?? '');
-    } catch {
-      /* เบราว์เซอร์ปิด storage — พิมพ์โทเคนใหม่ทุกครั้งแทน */
-    }
+    setToken(storedToken());
   }, []);
 
   async function send() {
@@ -50,7 +59,12 @@ export function CommitPanel({
     }
 
     try {
-      const r = await commitFiles(token.trim(), message, files, setProgress);
+      const t = token.trim();
+      // ประกอบไฟล์ตรงนี้ ไม่ใช่ตอน render — หน้าที่ต้องอ่านของสดจะได้อ่านก่อนเขียน
+      setProgress({ done: 0, total: 1, label: 'อ่านข้อมูลปัจจุบัน' });
+      const files = await getFiles(t);
+
+      const r = await commitFiles(t, message, files, setProgress);
       setResult({ url: r.url });
       onDone();
     } catch (e) {
@@ -103,10 +117,10 @@ export function CommitPanel({
       <div className="mt-4 flex items-center gap-3">
         <button
           onClick={() => void send()}
-          disabled={running || disabled || !token.trim() || files.length === 0}
+          disabled={running || disabled || !token.trim() || count === 0}
           className="rounded bg-brand px-5 py-2.5 font-semibold text-white hover:bg-brand-deep disabled:opacity-40"
         >
-          {running ? 'กำลังส่ง…' : `ส่ง ${files.length} ไฟล์`}
+          {running ? 'กำลังส่ง…' : `ส่ง ${count} ไฟล์`}
         </button>
 
         {progress && (

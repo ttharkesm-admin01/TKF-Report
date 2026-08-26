@@ -7,6 +7,7 @@ import roundConfig from '@/config/round.json';
 import { entrySections, monthIndex, monthLabel, prevMonthLabel, totalCells } from '@/lib/entry';
 import { formatJsonFile } from '@/lib/jsonFormat';
 import { UNITS, formatCell, type Cell, type UnitKey } from '@/shared/schema';
+import { readJsonFile, storedToken } from '@/lib/github';
 import { CommitPanel } from '@/components/arrange/CommitPanel';
 
 const STORAGE = `entry:${roundConfig.year}-${roundConfig.month}`;
@@ -123,6 +124,21 @@ export default function EditPage() {
   const [added, setAdded] = useState<Record<string, NewRow[]>>({});
   const [text, setText] = useState<Record<string, string>>({});
   const [loaded, setLoaded] = useState(false);
+  /** sections.json ตัวปัจจุบันในรีโป — null = ยังไม่ได้ดึง หรือดึงไม่ได้ */
+  const [live, setLive] = useState<typeof sectionsConfig | null>(null);
+  const [liveNote, setLiveNote] = useState('');
+
+  // เว็บเป็นไฟล์นิ่ง ค่าที่ฝังมาจึงเก่าได้ถึงหนึ่งรอบ build
+  // ดึงของสดมาเทียบตั้งแต่เปิดหน้า จะได้ไม่แสดงค่าที่คนอื่นแก้ไปแล้วเป็นค่าเก่า
+  useEffect(() => {
+    const token = storedToken();
+    if (!token) return;
+    readJsonFile<typeof sectionsConfig>(token, 'config/sections.json')
+      .then((cfg) => {
+        if (cfg) setLive(cfg);
+      })
+      .catch(() => setLiveNote('ดึงข้อมูลล่าสุดจาก GitHub ไม่ได้ — ค่าที่เห็นเป็นของตอน build ล่าสุด'));
+  }, []);
 
   useEffect(() => {
     try {
@@ -160,6 +176,34 @@ export default function EditPage() {
     }
   }, [edits, added, loaded]);
 
+  /** ค่าจริงในรีโปของเดือนนี้และเดือนก่อน · ใช้แทนค่าที่ฝังมาตอน build เมื่อดึงได้ */
+  const liveBase = useMemo(() => {
+    const now = new Map<string, Cell>();
+    const prev = new Map<string, Cell>();
+    if (!live) return { now, prev };
+    for (const section of live.sections as Array<{ blocks: Array<Record<string, unknown>> }>)
+      for (const block of section.blocks) {
+        if (block.type !== 'monthly-matrix') continue;
+        for (const row of (block.rows as Array<{ key: string; values: Cell[] }> | undefined) ?? []) {
+          const k = cellKey(block.id as string, row.key);
+          now.set(k, row.values[monthIndex] ?? null);
+          if (monthIndex > 0) prev.set(k, row.values[monthIndex - 1] ?? null);
+        }
+      }
+    return { now, prev };
+  }, [live]);
+
+  /** ค่าที่อยู่ในรีโปตอนนี้ — ของสดถ้ามี ไม่งั้นใช้ค่าที่ฝังมา */
+  const baseOf = (blockId: string, rowKey: string, fallback: Cell): Cell => {
+    const k = cellKey(blockId, rowKey);
+    return liveBase.now.has(k) ? (liveBase.now.get(k) as Cell) : fallback;
+  };
+
+  const prevOf = (blockId: string, rowKey: string, fallback: Cell): Cell => {
+    const k = cellKey(blockId, rowKey);
+    return liveBase.prev.has(k) ? (liveBase.prev.get(k) as Cell) : fallback;
+  };
+
   const valueOf = (blockId: string, rowKey: string, fallback: Cell): Cell => {
     const k = cellKey(blockId, rowKey);
     return k in edits ? edits[k] : fallback;
@@ -192,14 +236,19 @@ export default function EditPage() {
     let n = 0;
     for (const s of entrySections)
       for (const b of s.blocks)
-        for (const r of b.rows) if (valueOf(b.blockId, r.rowKey, r.current) !== null) n += 1;
+        for (const r of b.rows)
+          if (valueOf(b.blockId, r.rowKey, baseOf(b.blockId, r.rowKey, r.current)) !== null) n += 1;
     return n;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [edits]);
+  }, [edits, liveBase]);
 
-  /** ประกอบ sections.json ใหม่โดยแตะเฉพาะช่องของเดือนนี้ */
-  const nextConfig = useMemo(() => {
-    const clone = JSON.parse(JSON.stringify(sectionsConfig)) as typeof sectionsConfig;
+  /**
+   * ประกอบ sections.json ใหม่โดยแตะเฉพาะช่องของเดือนนี้
+   * `base` ต้องเป็นไฟล์**ตัวปัจจุบันในรีโป** ไม่ใช่ตัวที่ฝังมาตอน build
+   * ไม่งั้นจะเขียนทับสิ่งที่คนอื่นเพิ่งส่งไปโดยไม่รู้ตัว
+   */
+  const applyTo = (base: typeof sectionsConfig) => {
+    const clone = JSON.parse(JSON.stringify(base)) as typeof sectionsConfig;
     for (const section of clone.sections as Array<{ blocks: Array<Record<string, unknown>> }>) {
       for (const block of section.blocks) {
         if (block.type !== 'monthly-matrix') continue;
@@ -222,7 +271,7 @@ export default function EditPage() {
       }
     }
     return clone;
-  }, [edits, added]);
+  };
 
   const addedCount = Object.values(added).reduce((n, a) => n + a.length, 0);
   const changedCount = Object.keys(edits).length + addedCount;
@@ -238,20 +287,25 @@ export default function EditPage() {
         for (const r of b.rows) {
           const k = cellKey(b.blockId, r.rowKey);
           if (!(k in edits)) continue;
-          if (typeof r.current === 'number' && edits[k] === null) {
-            out.push({ blockId: b.blockId, rowKey: r.rowKey, label: r.label, was: r.current });
+          const was = baseOf(b.blockId, r.rowKey, r.current);
+          if (typeof was === 'number' && edits[k] === null) {
+            out.push({ blockId: b.blockId, rowKey: r.rowKey, label: r.label, was });
           }
         }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [edits]);
+  }, [edits, liveBase]);
 
   const isErasing = (blockId: string, rowKey: string) =>
     erasing.some((e) => e.blockId === blockId && e.rowKey === rowKey);
 
-  const commitList = changedCount
-    ? [{ path: 'config/sections.json', content: formatJsonFile(nextConfig as never) }]
-    : [];
+  const CONFIG_PATH = 'config/sections.json';
+
+  /** เรียกตอนกดส่งเท่านั้น — อ่านของสดก่อน แล้วค่อยทาบสิ่งที่แก้ลงไป */
+  const getFiles = async (token: string) => {
+    const live = await readJsonFile<typeof sectionsConfig>(token, CONFIG_PATH);
+    return [{ path: CONFIG_PATH, content: formatJsonFile(applyTo(live ?? sectionsConfig) as never) }];
+  };
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
@@ -270,6 +324,10 @@ export default function EditPage() {
         มีรายการใหม่ที่ยังไม่มีในตาราง กด <b>+ เพิ่มรายการ</b> ท้ายตารางนั้นได้เลย
         ระบบเปิดช่องให้ครบ 12 เดือนเอง
       </p>
+
+      {liveNote && (
+        <p className="mt-4 rounded bg-amber-50 px-4 py-2.5 text-sm text-amber-800">{liveNote}</p>
+      )}
 
       <p className="mt-4 rounded bg-brand-soft px-4 py-2.5 text-sm">
         กรอกแล้ว <b>{filled}</b> จาก {totalCells} ช่อง
@@ -306,7 +364,7 @@ export default function EditPage() {
                   })),
                 ].map((r) => {
                   const k = cellKey(b.blockId, r.rowKey);
-                  const v = valueOf(b.blockId, r.rowKey, r.current);
+                  const v = valueOf(b.blockId, r.rowKey, baseOf(b.blockId, r.rowKey, r.current));
                   const isNone = v === 'none';
                   return (
                     <li key={r.rowKey} className="flex flex-wrap items-center gap-2 py-2">
@@ -326,7 +384,7 @@ export default function EditPage() {
 
                       {prevMonthLabel && (
                         <span className="w-28 shrink-0 text-right font-mono text-xs text-ink-soft">
-                          {r.isNew ? '' : `${prevMonthLabel} ${formatCell(r.previous, r.unit) || '—'}`}
+                          {r.isNew ? '' : `${prevMonthLabel} ${formatCell(prevOf(b.blockId, r.rowKey, r.previous), r.unit) || '—'}`}
                         </span>
                       )}
 
@@ -348,7 +406,7 @@ export default function EditPage() {
 
                       {isErasing(b.blockId, r.rowKey) && (
                         <span className="shrink-0 text-xs font-medium text-red-600">
-                          กำลังลบ {formatCell(r.current, r.unit)}
+                          กำลังลบ {formatCell(baseOf(b.blockId, r.rowKey, r.current), r.unit)}
                         </span>
                       )}
 
@@ -418,11 +476,14 @@ export default function EditPage() {
       )}
 
       <CommitPanel
-        files={commitList}
+        count={changedCount ? 1 : 0}
+        getFiles={getFiles}
         message={`Fill ${monthLabel} ${roundConfig.year} figures (${changedCount} cells)`}
         disabled={changedCount === 0}
         onDone={() => {
+          // ต้องล้าง added ด้วย ไม่งั้นกดส่งซ้ำจะเขียนแถวนั้นกลับเป็นว่างทั้ง 12 เดือน
           setEdits({});
+          setAdded({});
           setText({});
           try {
             localStorage.removeItem(STORAGE);

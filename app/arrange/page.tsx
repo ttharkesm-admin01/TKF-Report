@@ -301,7 +301,9 @@ export default function ArrangePage() {
           </ol>
 
           <CommitPanel
-            files={commitFilesList}
+            count={commitFilesList.length}
+            // รูปกับ arrange.json อยู่ในโฟลเดอร์ของบล็อกนั้น ไม่ทับกับใคร จึงประกอบไว้ล่วงหน้าได้
+            getFiles={async () => commitFilesList}
             message={
               pending.length
                 ? `Add ${pending.length} photos to ${blockId}`
