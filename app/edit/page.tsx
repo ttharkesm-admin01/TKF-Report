@@ -227,6 +227,28 @@ export default function EditPage() {
   const addedCount = Object.values(added).reduce((n, a) => n + a.length, 0);
   const changedCount = Object.keys(edits).length + addedCount;
 
+  /**
+   * ช่องที่เคยมีตัวเลขอยู่แล้วแต่กำลังจะกลายเป็นว่าง
+   * เผลอกด Backspace ทีเดียวก็ลบข้อมูลย้อนหลังหายได้ และเดิมไม่มีอะไรเตือน
+   */
+  const erasing = useMemo(() => {
+    const out: Array<{ blockId: string; rowKey: string; label: string; was: number }> = [];
+    for (const s of entrySections)
+      for (const b of s.blocks)
+        for (const r of b.rows) {
+          const k = cellKey(b.blockId, r.rowKey);
+          if (!(k in edits)) continue;
+          if (typeof r.current === 'number' && edits[k] === null) {
+            out.push({ blockId: b.blockId, rowKey: r.rowKey, label: r.label, was: r.current });
+          }
+        }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [edits]);
+
+  const isErasing = (blockId: string, rowKey: string) =>
+    erasing.some((e) => e.blockId === blockId && e.rowKey === rowKey);
+
   const commitList = changedCount
     ? [{ path: 'config/sections.json', content: formatJsonFile(nextConfig as never) }]
     : [];
@@ -317,8 +339,18 @@ export default function EditPage() {
                           setCell(b.blockId, r.rowKey, parseCell(e.target.value));
                         }}
                         placeholder="—"
-                        className="w-28 shrink-0 rounded border border-line px-2 py-1 text-right font-mono text-sm tabular-nums disabled:bg-neutral-100"
+                        className={`w-28 shrink-0 rounded border px-2 py-1 text-right font-mono text-sm tabular-nums disabled:bg-neutral-100 ${
+                          isErasing(b.blockId, r.rowKey)
+                            ? 'border-red-500 bg-red-50'
+                            : 'border-line'
+                        }`}
                       />
+
+                      {isErasing(b.blockId, r.rowKey) && (
+                        <span className="shrink-0 text-xs font-medium text-red-600">
+                          กำลังลบ {formatCell(r.current, r.unit)}
+                        </span>
+                      )}
 
                       <span className="w-16 shrink-0 text-xs text-ink-soft">{r.unitLabel}</span>
 
@@ -365,6 +397,25 @@ export default function EditPage() {
           ))}
         </section>
       ))}
+
+      {erasing.length > 0 && (
+        <div className="mt-8 rounded border-2 border-red-500 bg-red-50 p-4">
+          <p className="font-semibold text-red-700">
+            ระวัง — กำลังลบตัวเลขเดิมทิ้ง {erasing.length} ช่อง
+          </p>
+          <ul className="mt-2 space-y-1 text-sm text-red-700">
+            {erasing.map((e) => (
+              <li key={`${e.blockId}.${e.rowKey}`}>
+                {e.label} · เดิม <b>{e.was.toLocaleString('en-US')}</b> → ว่าง
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-sm text-red-700">
+            ถ้าไม่ได้ตั้งใจ ให้พิมพ์ตัวเลขเดิมกลับเข้าไป · ถ้าตั้งใจว่าเดือนนี้ไม่มีรายการ
+            ให้กด <b>ไม่มีรายการ</b> แทนการปล่อยว่าง
+          </p>
+        </div>
+      )}
 
       <CommitPanel
         files={commitList}
