@@ -1,15 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import {
-  TOKEN_KEY,
-  commitFiles,
-  repo,
-  storedToken,
-  tokenPageUrl,
-  type CommitFile,
-  type CommitProgress,
-} from '@/lib/github';
+import { commitFiles, repo, tokenPageUrl, type CommitFile, type CommitProgress } from '@/lib/github';
+import { setToken, useToken } from '@/lib/useToken';
 
 /**
  * ส่งรูปเข้ารีโป
@@ -36,30 +29,36 @@ export function CommitPanel({
   disabled?: boolean;
   onDone: () => void;
 }) {
-  const [token, setToken] = useState('');
+  // โทเคนอยู่ที่ส่วนกลาง หน้าที่ครอบอยู่จะได้ดึงของสดจากรีโปทันทีที่พิมพ์เสร็จ
+  const token = useToken();
+  const [draft, setDraft] = useState(token);
   const [remember, setRemember] = useState(true);
   const [progress, setProgress] = useState<CommitProgress | null>(null);
   const [error, setError] = useState('');
   const [result, setResult] = useState<{ url: string } | null>(null);
 
+  // โทเคนที่เก็บไว้ในเครื่องอ่านได้หลัง hydrate เท่านั้น
   useEffect(() => {
-    setToken(storedToken());
-  }, []);
+    setDraft((d) => (d ? d : token));
+  }, [token]);
+
+  /**
+   * ประกาศให้ทั้งหน้ารู้ตอนพิมพ์เสร็จ ไม่ใช่ทุกตัวอักษร
+   * โทเคนที่พิมพ์ค้างครึ่งเดียวยิงไปก็ได้ 401 กลับมาเปล่า ๆ
+   */
+  const publish = () => {
+    if (draft.trim() !== token) setToken(draft.trim(), remember);
+  };
 
   async function send() {
     setError('');
     setResult(null);
     setProgress({ done: 0, total: 1, label: 'เริ่ม' });
 
-    try {
-      if (remember) localStorage.setItem(TOKEN_KEY, token);
-      else localStorage.removeItem(TOKEN_KEY);
-    } catch {
-      /* ไม่เป็นไร */
-    }
+    const t = draft.trim();
+    setToken(t, remember);
 
     try {
-      const t = token.trim();
       // ประกอบไฟล์ตรงนี้ ไม่ใช่ตอน render — หน้าที่ต้องอ่านของสดจะได้อ่านก่อนเขียน
       setProgress({ done: 0, total: 1, label: 'อ่านข้อมูลปัจจุบัน' });
       const files = await getFiles(t);
@@ -89,8 +88,9 @@ export function CommitPanel({
         GitHub Personal Access Token
         <input
           type="password"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={publish}
           placeholder="github_pat_..."
           className="mt-1 block w-full rounded border border-line px-3 py-2 font-mono text-sm"
         />
@@ -100,7 +100,10 @@ export function CommitPanel({
         <input
           type="checkbox"
           checked={remember}
-          onChange={(e) => setRemember(e.target.checked)}
+          onChange={(e) => {
+            setRemember(e.target.checked);
+            if (draft.trim()) setToken(draft.trim(), e.target.checked);
+          }}
         />
         จำโทเคนไว้ในเบราว์เซอร์เครื่องนี้
       </label>
@@ -117,7 +120,7 @@ export function CommitPanel({
       <div className="mt-4 flex items-center gap-3">
         <button
           onClick={() => void send()}
-          disabled={running || disabled || !token.trim() || count === 0}
+          disabled={running || disabled || !draft.trim() || count === 0}
           className="rounded bg-brand px-5 py-2.5 font-semibold text-white hover:bg-brand-deep disabled:opacity-40"
         >
           {running ? 'กำลังส่ง…' : `ส่ง ${count} ไฟล์`}

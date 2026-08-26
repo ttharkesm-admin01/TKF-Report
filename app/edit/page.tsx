@@ -1,16 +1,25 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import sectionsConfig from '@/config/sections.json';
 import roundConfig from '@/config/round.json';
-import { entrySections, monthIndex, monthLabel, prevMonthLabel, totalCells } from '@/lib/entry';
+import { buildSections, type RawConfig } from '@/lib/deck';
+import {
+  buildEntrySections,
+  countCells,
+  entrySections,
+  monthIndex,
+  monthLabel,
+  prevMonthLabel,
+} from '@/lib/entry';
 import { formatJsonFile } from '@/lib/jsonFormat';
 import { UNITS, formatCell, type Cell, type UnitKey } from '@/shared/schema';
-import { readJsonFile, storedToken } from '@/lib/github';
+import { readJsonFile } from '@/lib/github';
+import { useToken } from '@/lib/useToken';
 import { CommitPanel } from '@/components/arrange/CommitPanel';
 
 const STORAGE = `entry:${roundConfig.year}-${roundConfig.month}`;
+const CONFIG_PATH = 'config/sections.json';
 
 /** คีย์ของช่องหนึ่งช่อง */
 const cellKey = (blockId: string, rowKey: string) => `${blockId}.${rowKey}`;
@@ -34,6 +43,13 @@ const UNIT_KEYS = Object.keys(UNITS) as UnitKey[];
  * ไม่ต้องถามใครว่าตารางกว้างเท่าไร
  */
 const emptyYear = (): Cell[] => Array<Cell>(12).fill(null);
+
+/** คีย์ `custom-N` ตัวแรกที่ยังว่างในชุดที่ให้มา */
+function nextCustomKey(taken: ReadonlySet<string>): string {
+  let n = 1;
+  while (taken.has(`custom-${n}`)) n += 1;
+  return `custom-${n}`;
+}
 
 /** ปุ่มเพิ่มรายการของตารางหนึ่งตาราง */
 function AddRowForm({
@@ -124,21 +140,64 @@ export default function EditPage() {
   const [added, setAdded] = useState<Record<string, NewRow[]>>({});
   const [text, setText] = useState<Record<string, string>>({});
   const [loaded, setLoaded] = useState(false);
-  /** sections.json ตัวปัจจุบันในรีโป — null = ยังไม่ได้ดึง หรือดึงไม่ได้ */
-  const [live, setLive] = useState<typeof sectionsConfig | null>(null);
-  const [liveNote, setLiveNote] = useState('');
 
-  // เว็บเป็นไฟล์นิ่ง ค่าที่ฝังมาจึงเก่าได้ถึงหนึ่งรอบ build
-  // ดึงของสดมาเทียบตั้งแต่เปิดหน้า จะได้ไม่แสดงค่าที่คนอื่นแก้ไปแล้วเป็นค่าเก่า
+  /** sections.json ตัวปัจจุบันในรีโป — null = ยังไม่ได้ดึง หรือดึงไม่ได้ */
+  const [live, setLive] = useState<RawConfig | null>(null);
+  const [liveNote, setLiveNote] = useState('');
+  /** ขยับเลขนี้เพื่อสั่งดึงของสดใหม่ เช่นหลังส่งสำเร็จ */
+  const [reload, setReload] = useState(0);
+  /**
+   * คีย์แถวที่เพิ่งส่งไปในเซสชันนี้ · GitHub แคช contents API ได้ราวหนึ่งนาที
+   * ดึงของสดทันทีหลังส่งจึงอาจยังไม่เห็นแถวที่เพิ่งเพิ่ม — จำไว้เองกันคีย์ชนซ้ำ
+   */
+  const [sentKeys, setSentKeys] = useState<Record<string, string[]>>({});
+
+  const token = useToken();
+  /** คีย์ที่ getFiles เพิ่งเขียนลงไปจริง — onDone หยิบไปจำต่อ กันรอบหน้าตั้งคีย์ซ้ำ */
+  const pendingKeys = useRef<Record<string, string[]>>({});
+
+  /**
+   * ดึงของสดตั้งแต่เปิดหน้า ไม่ใช่แค่ตอนกดส่ง (CLAUDE.md กฎข้อ 4)
+   * เว็บเป็นไฟล์นิ่ง ค่าที่ฝังมาจึงเก่าได้ถึงหนึ่งรอบ build — ถ้าหน้ายืนบนค่าเก่า
+   * ตัวเตือน "กำลังลบตัวเลขเดิม" จะเทียบผิดฐาน และคีย์แถวใหม่จะชนของที่มีอยู่แล้ว
+   */
   useEffect(() => {
-    const token = storedToken();
-    if (!token) return;
-    readJsonFile<typeof sectionsConfig>(token, 'config/sections.json')
+    if (!token) {
+      setLive(null);
+      setLiveNote('');
+      return;
+    }
+    let cancelled = false;
+    readJsonFile<RawConfig>(token, CONFIG_PATH)
       .then((cfg) => {
-        if (cfg) setLive(cfg);
+        if (cancelled) return;
+        if (cfg) {
+          setLive(cfg);
+          setLiveNote('');
+        } else {
+          setLiveNote(`ไม่พบ ${CONFIG_PATH} ในรีโป — ค่าที่เห็นเป็นของตอน build ล่าสุด`);
+        }
       })
-      .catch(() => setLiveNote('ดึงข้อมูลล่าสุดจาก GitHub ไม่ได้ — ค่าที่เห็นเป็นของตอน build ล่าสุด'));
-  }, []);
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        const why = e instanceof Error ? e.message : '';
+        setLiveNote(`ดึงข้อมูลล่าสุดจาก GitHub ไม่ได้ — ค่าที่เห็นเป็นของตอน build ล่าสุด${why ? ` (${why})` : ''}`);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token, reload]);
+
+  /**
+   * รายการช่องที่แสดงบนหน้า — ประกอบจากของสดถ้าดึงได้ ไม่งั้นใช้ค่าตอน build
+   * ประกอบจากของสดทั้งก้อน ไม่ใช่เอาของสดมาทาบเฉพาะค่า เพราะ **คีย์แถว** ก็ต้องสดด้วย
+   */
+  const view = useMemo(
+    () => (live ? buildEntrySections(buildSections(live)) : entrySections),
+    [live],
+  );
+
+  const totalCells = useMemo(() => countCells(view), [view]);
 
   useEffect(() => {
     try {
@@ -176,34 +235,6 @@ export default function EditPage() {
     }
   }, [edits, added, loaded]);
 
-  /** ค่าจริงในรีโปของเดือนนี้และเดือนก่อน · ใช้แทนค่าที่ฝังมาตอน build เมื่อดึงได้ */
-  const liveBase = useMemo(() => {
-    const now = new Map<string, Cell>();
-    const prev = new Map<string, Cell>();
-    if (!live) return { now, prev };
-    for (const section of live.sections as Array<{ blocks: Array<Record<string, unknown>> }>)
-      for (const block of section.blocks) {
-        if (block.type !== 'monthly-matrix') continue;
-        for (const row of (block.rows as Array<{ key: string; values: Cell[] }> | undefined) ?? []) {
-          const k = cellKey(block.id as string, row.key);
-          now.set(k, row.values[monthIndex] ?? null);
-          if (monthIndex > 0) prev.set(k, row.values[monthIndex - 1] ?? null);
-        }
-      }
-    return { now, prev };
-  }, [live]);
-
-  /** ค่าที่อยู่ในรีโปตอนนี้ — ของสดถ้ามี ไม่งั้นใช้ค่าที่ฝังมา */
-  const baseOf = (blockId: string, rowKey: string, fallback: Cell): Cell => {
-    const k = cellKey(blockId, rowKey);
-    return liveBase.now.has(k) ? (liveBase.now.get(k) as Cell) : fallback;
-  };
-
-  const prevOf = (blockId: string, rowKey: string, fallback: Cell): Cell => {
-    const k = cellKey(blockId, rowKey);
-    return liveBase.prev.has(k) ? (liveBase.prev.get(k) as Cell) : fallback;
-  };
-
   const valueOf = (blockId: string, rowKey: string, fallback: Cell): Cell => {
     const k = cellKey(blockId, rowKey);
     return k in edits ? edits[k] : fallback;
@@ -212,12 +243,18 @@ export default function EditPage() {
   const setCell = (blockId: string, rowKey: string, v: Cell) =>
     setEdits((p) => ({ ...p, [cellKey(blockId, rowKey)]: v }));
 
-  /** คีย์ที่ยังไม่ถูกใช้ในตารางนี้ — ทั้งของเดิมและที่เพิ่งเพิ่ม */
+  /**
+   * คีย์ที่ยังไม่ถูกใช้ในตารางนี้
+   * รวมสามทาง: แถวที่เห็นอยู่ (สดถ้าดึงได้) · แถวที่เพิ่งเพิ่มแต่ยังไม่ส่ง · แถวที่ส่งไปแล้วเซสชันนี้
+   */
   function freeKey(blockId: string, existing: string[]): string {
-    const taken = new Set([...existing, ...(added[blockId] ?? []).map((r) => r.key)]);
-    let n = 1;
-    while (taken.has(`custom-${n}`)) n += 1;
-    return `custom-${n}`;
+    return nextCustomKey(
+      new Set([
+        ...existing,
+        ...(added[blockId] ?? []).map((r) => r.key),
+        ...(sentKeys[blockId] ?? []),
+      ]),
+    );
   }
 
   const addRow = (blockId: string, row: NewRow) =>
@@ -234,22 +271,25 @@ export default function EditPage() {
 
   const filled = useMemo(() => {
     let n = 0;
-    for (const s of entrySections)
+    for (const s of view)
       for (const b of s.blocks)
-        for (const r of b.rows)
-          if (valueOf(b.blockId, r.rowKey, baseOf(b.blockId, r.rowKey, r.current)) !== null) n += 1;
+        for (const r of b.rows) if (valueOf(b.blockId, r.rowKey, r.current) !== null) n += 1;
     return n;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [edits, liveBase]);
+  }, [edits, view]);
 
   /**
    * ประกอบ sections.json ใหม่โดยแตะเฉพาะช่องของเดือนนี้
    * `base` ต้องเป็นไฟล์**ตัวปัจจุบันในรีโป** ไม่ใช่ตัวที่ฝังมาตอน build
    * ไม่งั้นจะเขียนทับสิ่งที่คนอื่นเพิ่งส่งไปโดยไม่รู้ตัว
    */
-  const applyTo = (base: typeof sectionsConfig) => {
-    const clone = JSON.parse(JSON.stringify(base)) as typeof sectionsConfig;
-    for (const section of clone.sections as Array<{ blocks: Array<Record<string, unknown>> }>) {
+  const applyTo = (base: RawConfig) => {
+    const clone = JSON.parse(JSON.stringify(base)) as RawConfig;
+    const usedKeys: Record<string, string[]> = {};
+
+    for (const section of clone.sections as unknown as Array<{
+      blocks: Array<Record<string, unknown>>;
+    }>) {
       for (const block of section.blocks) {
         if (block.type !== 'monthly-matrix') continue;
         const rows = block.rows as Array<Record<string, unknown>> | undefined;
@@ -262,15 +302,22 @@ export default function EditPage() {
         }
 
         // แถวที่เพิ่มจากหน้าเว็บต่อท้ายตาราง พร้อมช่องครบ 12 เดือน
+        const taken = new Set(rows.map((r) => r.key as string));
         for (const nr of added[id] ?? []) {
+          // ตาข่ายกันคีย์ชน — ของสดอาจมี custom-N ตัวนั้นอยู่แล้วโดยที่หน้ายังไม่เห็น
+          // ปล่อยให้ชนแปลว่าสองแถวใช้คีย์เดียวกันตลอดไป แก้ช่องเดียวเขียนลงทั้งคู่
+          const key = taken.has(nr.key) ? nextCustomKey(taken) : nr.key;
+          taken.add(key);
+          (usedKeys[id] ??= []).push(key);
+
           const values = emptyYear();
           const k = cellKey(id, nr.key);
           if (k in edits) values[monthIndex] = edits[k];
-          rows.push({ key: nr.key, label: nr.label, unit: nr.unit, values });
+          rows.push({ key, label: nr.label, unit: nr.unit, values });
         }
       }
     }
-    return clone;
+    return { clone, usedKeys };
   };
 
   const addedCount = Object.values(added).reduce((n, a) => n + a.length, 0);
@@ -282,29 +329,34 @@ export default function EditPage() {
    */
   const erasing = useMemo(() => {
     const out: Array<{ blockId: string; rowKey: string; label: string; was: number }> = [];
-    for (const s of entrySections)
+    for (const s of view)
       for (const b of s.blocks)
         for (const r of b.rows) {
           const k = cellKey(b.blockId, r.rowKey);
           if (!(k in edits)) continue;
-          const was = baseOf(b.blockId, r.rowKey, r.current);
-          if (typeof was === 'number' && edits[k] === null) {
-            out.push({ blockId: b.blockId, rowKey: r.rowKey, label: r.label, was });
+          if (typeof r.current === 'number' && edits[k] === null) {
+            out.push({ blockId: b.blockId, rowKey: r.rowKey, label: r.label, was: r.current });
           }
         }
     return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [edits, liveBase]);
+  }, [edits, view]);
 
   const isErasing = (blockId: string, rowKey: string) =>
     erasing.some((e) => e.blockId === blockId && e.rowKey === rowKey);
 
-  const CONFIG_PATH = 'config/sections.json';
-
   /** เรียกตอนกดส่งเท่านั้น — อ่านของสดก่อน แล้วค่อยทาบสิ่งที่แก้ลงไป */
-  const getFiles = async (token: string) => {
-    const live = await readJsonFile<typeof sectionsConfig>(token, CONFIG_PATH);
-    return [{ path: CONFIG_PATH, content: formatJsonFile(applyTo(live ?? sectionsConfig) as never) }];
+  const getFiles = async (t: string) => {
+    const current = await readJsonFile<RawConfig>(t, CONFIG_PATH);
+    // อ่านไม่เจอแล้วถอยไปใช้ค่าตอน build = ย้อนทั้งไฟล์กลับไปหนึ่งรอบ build เงียบ ๆ
+    // ยอมให้ส่งไม่สำเร็จดีกว่ากลบงานของคนอื่น
+    if (!current) {
+      throw new Error(
+        `อ่าน ${CONFIG_PATH} จากรีโปไม่ได้ — ยกเลิกการส่ง ไม่งั้นจะเขียนทับด้วยข้อมูลเก่าตอน build`,
+      );
+    }
+    const { clone, usedKeys } = applyTo(current);
+    pendingKeys.current = usedKeys;
+    return [{ path: CONFIG_PATH, content: formatJsonFile(clone as never) }];
   };
 
   return (
@@ -325,8 +377,23 @@ export default function EditPage() {
         ระบบเปิดช่องให้ครบ 12 เดือนเอง
       </p>
 
+      {!token && (
+        <p className="mt-4 rounded bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+          <b>ยังไม่ได้ใส่โทเคน</b> — ค่าที่เห็นเป็นของตอน build ล่าสุด
+          ตัวเตือนตอนกำลังลบตัวเลขเดิมจึงอาจไม่ครบ
+          <br />
+          ใส่โทเคนในช่องท้ายหน้าแล้วกดออกจากช่อง หน้านี้จะดึงค่าล่าสุดจากรีโปมาให้เอง
+        </p>
+      )}
+
       {liveNote && (
         <p className="mt-4 rounded bg-amber-50 px-4 py-2.5 text-sm text-amber-800">{liveNote}</p>
+      )}
+
+      {live && (
+        <p className="mt-4 rounded bg-brand-soft px-4 py-2.5 text-sm text-ink-soft">
+          ค่าที่เห็นเป็น<b>ของล่าสุดในรีโป</b>แล้ว ไม่ต้องรอเว็บ build ใหม่
+        </p>
       )}
 
       <p className="mt-4 rounded bg-brand-soft px-4 py-2.5 text-sm">
@@ -337,7 +404,7 @@ export default function EditPage() {
         )}
       </p>
 
-      {entrySections.map((s) => (
+      {view.map((s) => (
         <section key={s.key} className="mt-8">
           <h2 className="border-b border-line pb-1.5 text-lg font-semibold">
             <span className="font-mono text-brand">{s.number}</span> {s.title}
@@ -364,7 +431,7 @@ export default function EditPage() {
                   })),
                 ].map((r) => {
                   const k = cellKey(b.blockId, r.rowKey);
-                  const v = valueOf(b.blockId, r.rowKey, baseOf(b.blockId, r.rowKey, r.current));
+                  const v = valueOf(b.blockId, r.rowKey, r.current);
                   const isNone = v === 'none';
                   return (
                     <li key={r.rowKey} className="flex flex-wrap items-center gap-2 py-2">
@@ -384,7 +451,7 @@ export default function EditPage() {
 
                       {prevMonthLabel && (
                         <span className="w-28 shrink-0 text-right font-mono text-xs text-ink-soft">
-                          {r.isNew ? '' : `${prevMonthLabel} ${formatCell(prevOf(b.blockId, r.rowKey, r.previous), r.unit) || '—'}`}
+                          {r.isNew ? '' : `${prevMonthLabel} ${formatCell(r.previous, r.unit) || '—'}`}
                         </span>
                       )}
 
@@ -406,7 +473,7 @@ export default function EditPage() {
 
                       {isErasing(b.blockId, r.rowKey) && (
                         <span className="shrink-0 text-xs font-medium text-red-600">
-                          กำลังลบ {formatCell(baseOf(b.blockId, r.rowKey, r.current), r.unit)}
+                          กำลังลบ {formatCell(r.current, r.unit)}
                         </span>
                       )}
 
@@ -481,10 +548,20 @@ export default function EditPage() {
         message={`Fill ${monthLabel} ${roundConfig.year} figures (${changedCount} cells)`}
         disabled={changedCount === 0}
         onDone={() => {
+          // จำคีย์ที่เพิ่งส่งไว้ก่อน — ของสดรอบหน้าอาจยังไม่ทันเห็นแถวเหล่านี้
+          setSentKeys((p) => {
+            const next = { ...p };
+            for (const [id, keys] of Object.entries(pendingKeys.current)) {
+              next[id] = [...(next[id] ?? []), ...keys];
+            }
+            return next;
+          });
           // ต้องล้าง added ด้วย ไม่งั้นกดส่งซ้ำจะเขียนแถวนั้นกลับเป็นว่างทั้ง 12 เดือน
           setEdits({});
           setAdded({});
           setText({});
+          // ดึงของสดใหม่ทันที ผู้ใช้จะได้เห็นผลโดยไม่ต้องรอเว็บ build ใหม่
+          setReload((n) => n + 1);
           try {
             localStorage.removeItem(STORAGE);
           } catch {

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { allPhotosOf, expectedFolder } from '@/lib/photos';
 import { photoBlocks } from '@/lib/photoBlocks';
 import { humanSize, type Prepared } from '@/lib/resize';
-import type { CommitFile } from '@/lib/github';
+import { readJsonFile, type CommitFile } from '@/lib/github';
 import { PhotoDrop } from '@/components/arrange/PhotoDrop';
 import { CommitPanel } from '@/components/arrange/CommitPanel';
 
@@ -21,7 +21,13 @@ interface Item {
 const storageKey = (blockId: string) => `arrange:${blockId}`;
 
 /** ไฟล์ที่จะเอาไปวางในโฟลเดอร์รูป */
-function toArrangeFile(items: Item[]) {
+interface ArrangeFile {
+  order: string[];
+  hidden: string[];
+  captions: Record<string, string>;
+}
+
+function toArrangeFile(items: Item[]): ArrangeFile {
   const captions: Record<string, string> = {};
   for (const i of items) if (i.caption.trim()) captions[i.file] = i.caption.trim();
   return {
@@ -31,11 +37,41 @@ function toArrangeFile(items: Item[]) {
   };
 }
 
+/**
+ * รวมสิ่งที่จัดไว้บนหน้านี้เข้ากับ arrange.json **ตัวปัจจุบันในรีโป**
+ *
+ * เว็บเป็นไฟล์นิ่ง รายการรูปที่หน้านี้เห็นจึงเป็นภาพนิ่งของตอน build
+ * ถ้าเขียนทับทั้งก้อน รูปที่คนอื่นเพิ่งส่งไป (ยังไม่ทัน build) จะหลุดจาก `order`
+ * ตัวไฟล์รูปยังอยู่ในรีโป แต่**คำบรรยายหายและใบที่ซ่อนไว้จะโผล่กลับ**
+ *
+ * กติกา: ไฟล์ที่หน้านี้เห็น ใช้ความเห็นของหน้านี้ · ไฟล์ที่ไม่เคยเห็น คงของเดิมไว้ทุกอย่าง
+ */
+function mergeArrange(live: ArrangeFile | null, mine: ArrangeFile): ArrangeFile {
+  if (!live) return mine;
+
+  const known = new Set(mine.order);
+  const extra = (live.order ?? []).filter((f) => !known.has(f));
+
+  const captions = { ...mine.captions };
+  for (const f of extra) {
+    const c = live.captions?.[f];
+    if (c) captions[f] = c;
+  }
+
+  return {
+    order: [...mine.order, ...extra],
+    hidden: [...mine.hidden, ...(live.hidden ?? []).filter((f) => !known.has(f))],
+    captions,
+  };
+}
+
 export default function ArrangePage() {
   const [blockId, setBlockId] = useState(photoBlocks[0]?.id ?? '');
   const [items, setItems] = useState<Item[]>([]);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [saved, setSaved] = useState('');
+  /** การจัดวางตอนเปิดบล็อกนี้ — เทียบเพื่อรู้ว่ามีอะไรเปลี่ยนจริงไหม */
+  const [baseline, setBaseline] = useState('');
 
   const block = useMemo(() => photoBlocks.find((b) => b.id === blockId), [blockId]);
 
@@ -57,8 +93,13 @@ export default function ArrangePage() {
       draft = null;
     }
 
+    const settle = (next: Item[]) => {
+      setItems(next);
+      setBaseline(JSON.stringify(toArrangeFile(next)));
+    };
+
     if (!draft) {
-      setItems(base);
+      settle(base);
       return;
     }
 
@@ -66,7 +107,7 @@ export default function ArrangePage() {
     const ordered = draft.order.map((f) => byFile.get(f)).filter((i): i is Item => Boolean(i));
     const rest = base.filter((i) => !draft!.order.includes(i.file));
     const hidden = new Set(draft.hidden);
-    setItems(
+    settle(
       [...ordered, ...rest].map((i) => ({
         ...i,
         hidden: hidden.has(i.file),
@@ -142,16 +183,25 @@ export default function ArrangePage() {
 
   const folder = blockId ? expectedFolder(blockId) : '';
 
+  const arrangePath = folder + 'arrange.json';
+  const current = JSON.stringify(toArrangeFile(items));
+  /** ไม่มีรูปใหม่และลำดับก็ไม่ขยับ = ไม่มีอะไรต้องส่ง */
+  const dirty = pending.length > 0 || (Boolean(baseline) && current !== baseline);
+  const fileCount = dirty ? pending.length + 1 : 0;
+
   // ส่งรูปใหม่ไปพร้อม arrange.json เสมอ ลำดับกับคำบรรยายจะได้ไม่หลุดจากกัน
-  const commitFilesList: CommitFile[] = items.length
-    ? [
-        ...pending.map((i) => ({ path: folder + i.file, content: i.pending!.blob })),
-        {
-          path: folder + 'arrange.json',
-          content: JSON.stringify(toArrangeFile(items), null, 2) + '\n',
-        },
-      ]
-    : [];
+  // อ่าน arrange.json ตัวปัจจุบันก่อนเขียนทับ (CLAUDE.md กฎข้อ 4) — ตอนกดส่ง ไม่ใช่ตอน render
+  const getFiles = async (token: string): Promise<CommitFile[]> => {
+    if (!items.length) return [];
+    const liveArrange = await readJsonFile<ArrangeFile>(token, arrangePath);
+    return [
+      ...pending.map((i) => ({ path: folder + i.file, content: i.pending!.blob })),
+      {
+        path: arrangePath,
+        content: JSON.stringify(mergeArrange(liveArrange, toArrangeFile(items)), null, 2) + '\n',
+      },
+    ];
+  };
 
   const pendingBytes = pending.reduce((n, i) => n + i.pending!.blob.size, 0);
   const savedBytes = pending.reduce((n, i) => n + i.pending!.originalSize - i.pending!.blob.size, 0);
@@ -301,18 +351,22 @@ export default function ArrangePage() {
           </ol>
 
           <CommitPanel
-            count={commitFilesList.length}
-            // รูปกับ arrange.json อยู่ในโฟลเดอร์ของบล็อกนั้น ไม่ทับกับใคร จึงประกอบไว้ล่วงหน้าได้
-            getFiles={async () => commitFilesList}
+            count={fileCount}
+            disabled={!dirty}
+            getFiles={getFiles}
             message={
               pending.length
                 ? `Add ${pending.length} photos to ${blockId}`
                 : `Update photo arrangement for ${blockId}`
             }
-            onDone={() =>
+            onDone={() => {
               // ส่งไปแล้วไม่ต้องส่งซ้ำ · ตัวอย่างรูปยังดูได้จนกว่าจะปิดหน้า
-              setItems((prev) => prev.map((i) => ({ ...i, pending: undefined })))
-            }
+              setItems((prev) => {
+                const next = prev.map((i) => ({ ...i, pending: undefined }));
+                setBaseline(JSON.stringify(toArrangeFile(next)));
+                return next;
+              });
+            }}
           />
         </>
       )}

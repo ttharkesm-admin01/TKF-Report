@@ -220,27 +220,47 @@ export const meta: DeckMeta = {
   status: roundConfig.status,
 };
 
-export const sections: DeckSection[] = (sectionsConfig.sections as RawSection[]).map(
-  (s, i): DeckSection => ({
-    key: s.key,
-    // ← เลขหัวข้อเกิดตรงนี้ที่เดียว
-    number: `${sectionsConfig.department}.${i + 1}`,
-    title: s.title,
-    frequency: s.frequency as Frequency,
-    blocks: s.blocks.map((b): DeckBlock => {
-      const type = toBlockType(b.type);
-      return {
-        id: b.id,
-        type,
-        // ปกกับปิดท้ายไม่มี title ใน config เพราะระบบสร้างข้อความเอง
-        title: b.title ?? s.title,
-        mode: b.mode ?? 'manual',
-        buildStep: BUILD_STEP[type],
-        raw: b,
-      };
+/** รูปร่างของ sections.json ทั้งไฟล์ — รับเป็นพารามิเตอร์ได้เพราะหน้ากรอกอ่านของสดจาก GitHub */
+export interface RawConfig {
+  department: string;
+  sections: RawSection[];
+  [key: string]: unknown;
+}
+
+/**
+ * config → รายการหัวข้อพร้อมเลขหัวข้อ
+ *
+ * รับ config เป็นพารามิเตอร์ ไม่ใช่อ่านจากตัวที่ import มาตรง ๆ
+ * เพราะหน้า `/edit` ต้องประกอบรายการนี้จาก **ไฟล์ตัวปัจจุบันในรีโป**
+ * ไม่ใช่ภาพนิ่งตอน build ไม่งั้นจะไม่เห็นแถวที่คนอื่นเพิ่งเพิ่ม
+ * และตั้งคีย์แถวใหม่ชนกับของที่มีอยู่แล้ว (CLAUDE.md กฎข้อ 4)
+ */
+export function buildSections(config: RawConfig): DeckSection[] {
+  return (config.sections as RawSection[]).map(
+    (s, i): DeckSection => ({
+      key: s.key,
+      // ← เลขหัวข้อเกิดตรงนี้ที่เดียว
+      number: `${config.department}.${i + 1}`,
+      title: s.title,
+      frequency: s.frequency as Frequency,
+      blocks: s.blocks.map((b): DeckBlock => {
+        const type = toBlockType(b.type);
+        return {
+          id: b.id,
+          type,
+          // ปกกับปิดท้ายไม่มี title ใน config เพราะระบบสร้างข้อความเอง
+          title: b.title ?? s.title,
+          mode: b.mode ?? 'manual',
+          buildStep: BUILD_STEP[type],
+          raw: b,
+        };
+      }),
     }),
-  }),
-);
+  );
+}
+
+/** เด็คที่เรนเดอร์ออกมาเป็นไฟล์นิ่ง — ใช้ config ตอน build ซึ่งถูกต้องแล้วสำหรับหน้าเด็ค */
+export const sections: DeckSection[] = buildSections(sectionsConfig as unknown as RawConfig);
 
 /** เด็คทั้งเล่มเรียงเป็นหน้า ๆ */
 export const slides: DeckSlide[] = sections

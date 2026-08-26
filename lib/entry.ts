@@ -8,7 +8,7 @@
 
 import roundConfig from '@/config/round.json';
 import { MONTHS, MONTHS_SHORT, UNITS, type Cell, type UnitKey } from '@/shared/schema';
-import { sections } from './deck';
+import { sections, type DeckSection } from './deck';
 
 /** ดัชนีเดือนของรอบที่ทำอยู่ (0-11) */
 export const monthIndex = roundConfig.month - 1;
@@ -41,8 +41,14 @@ export interface EntrySection {
   blocks: EntryBlock[];
 }
 
-/** ทุกช่องของรอบนี้ เรียงตามลำดับหัวข้อในเด็ค */
-export const entrySections: EntrySection[] = sections
+/**
+ * ประกอบรายการช่องกรอกจากหัวข้อชุดหนึ่ง
+ *
+ * รับ `list` เป็นพารามิเตอร์เพื่อให้หน้า `/edit` ป้อน**ของสดจากรีโป**เข้ามาได้
+ * ไม่ใช่ผูกกับภาพนิ่งตอน build ตัวเดียว (CLAUDE.md กฎข้อ 4)
+ */
+export function buildEntrySections(list: DeckSection[]): EntrySection[] {
+  return list
   .map((s) => ({
     key: s.key,
     number: s.number,
@@ -75,8 +81,12 @@ export const entrySections: EntrySection[] = sections
       .filter((b) => b.rows.length > 0),
   }))
   .filter((s) => s.blocks.length > 0);
+}
 
-export const totalCells = entrySections.reduce(
-  (n, s) => n + s.blocks.reduce((m, b) => m + b.rows.length, 0),
-  0,
-);
+/** ช่องกรอกตามภาพนิ่งตอน build — ใช้เป็นค่าตั้งต้นก่อนของสดจะมาถึง */
+export const entrySections: EntrySection[] = buildEntrySections(sections);
+
+export const countCells = (list: EntrySection[]): number =>
+  list.reduce((n, s) => n + s.blocks.reduce((m, b) => m + b.rows.length, 0), 0);
+
+export const totalCells = countCells(entrySections);
