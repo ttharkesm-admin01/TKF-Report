@@ -6,6 +6,9 @@ const basePath = process.env.PAGES_BASE_PATH ?? '';
 
 const nextConfig: NextConfig = {
   basePath,
+  // สร้างเป็น edit/index.html แทน edit.html
+  // ไม่งั้น URL ที่มี / ต่อท้าย (ซึ่งคนพิมพ์กันตามปกติ) จะ 404 บน GitHub Pages
+  trailingSlash: true,
   // รูปใน public/ ต้องเติมคำนำหน้าเองเพราะเราใช้ <img> ธรรมดา ไม่ใช่ next/image
   env: { NEXT_PUBLIC_BASE_PATH: basePath },
   // เอาต์พุตเป็นไฟล์นิ่ง — เปิดจากที่โฮสต์ไหนก็ได้ ไม่ต้องมี Node บนเครื่องผู้ใช้
