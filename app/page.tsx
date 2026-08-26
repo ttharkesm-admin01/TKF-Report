@@ -29,10 +29,16 @@ export default function Home() {
           ดูทั้งเล่ม / พิมพ์ PDF
         </Link>
         <Link
+          href="/edit"
+          className="rounded border border-line px-5 py-2.5 font-semibold text-ink-soft hover:bg-neutral-50"
+        >
+          กรอกตัวเลข
+        </Link>
+        <Link
           href="/arrange"
           className="rounded border border-line px-5 py-2.5 font-semibold text-ink-soft hover:bg-neutral-50"
         >
-          จัดรูป
+          ลงรูป
         </Link>
       </div>
 
