@@ -1,7 +1,53 @@
 import { Slide, SlideFooter } from './Slide';
 import { formatNumber } from '@/lib/matrix';
-import { UNITS, type ListTableBlock } from '@/shared/schema';
+import {
+  MONTHS_SHORT,
+  UNITS,
+  type ListCell,
+  type ListColumn,
+  type ListTableBlock,
+} from '@/shared/schema';
 import type { DeckMeta, DeckSection, SlidePart } from '@/lib/deck';
+
+type Row = Record<string, ListCell>;
+
+const same = (a: ListCell, b: ListCell) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+
+/**
+ * จำนวนแถวที่ช่องนี้กินลงไป
+ * 0 = ถูกรวมเข้ากับแถวบนแล้ว ไม่ต้องวาด · ตารางแผนงานต้นฉบับก็รวมช่องแบบนี้
+ */
+function spanOf(rows: Row[], index: number, col: ListColumn): number {
+  if (!col.merge) return 1;
+  const v = rows[index][col.key] ?? null;
+  if (index > 0 && same(rows[index - 1][col.key] ?? null, v)) return 0;
+  let n = 1;
+  while (index + n < rows.length && same(rows[index + n][col.key] ?? null, v)) n += 1;
+  return n;
+}
+
+/**
+ * แถบช่วงเดือน 12 ช่อง
+ * ต้นฉบับกาง 12 เดือน × 5 สัปดาห์ = 60 ช่อง กินความกว้างครึ่งสไลด์
+ * ทั้งที่ทุกแถวบอกอย่างเดียวกันว่า "ทำตลอดปี" — 12 ช่องให้ความหมายเท่ากันในพื้นที่ 1 ใน 5
+ */
+function MonthBar({ range }: { range: [number, number] | null }) {
+  // ความสูงกำหนดตายตัว — `h-full` ในช่องตารางไม่มีความสูงให้อ้างอิง แถบจะหายไปเฉย ๆ
+  return (
+    <div className="flex h-[1.1cqw] w-full">
+      {MONTHS_SHORT.map((m, i) => {
+        const on = range !== null && i + 1 >= range[0] && i + 1 <= range[1];
+        return (
+          <span
+            key={m}
+            title={m}
+            className={`flex-1 border-r border-line/60 last:border-r-0 ${on ? 'bg-brand' : 'bg-neutral-100'}`}
+          />
+        );
+      })}
+    </div>
+  );
+}
 
 /**
  * ตารางรายการทั่วไป (ไม่มีมิติเดือน) — โครงตารางมาจาก config ทั้งหมด
@@ -63,8 +109,12 @@ export function ListTableSlide({
     );
   }
 
+  const hasMerge = columns.some((c) => c.merge);
   const rowCount = rows.length || 1;
-  const fontCqw = Math.min(1.75, Math.max(1.05, (41.7 / (rowCount * 1.6 + 2)) * 0.62));
+
+  // ตารางที่รวมช่องเป็นแผนงานแถวสั้น ๆ บรรทัดเดียว จึงไม่ต้องเผื่อการตัดบรรทัดมาก
+  const linesPerRow = hasMerge ? 1.05 : 1.6;
+  const fontCqw = Math.min(1.75, Math.max(0.8, (41.7 / (rowCount * linesPerRow + 2)) * 0.62));
 
   return (
     <Slide id={part && part.index > 1 ? `${block.id}-${part.index}` : block.id}>
@@ -97,16 +147,31 @@ export function ListTableSlide({
 
             <tbody>
               {rows.map((r, ri) => (
-                <tr key={ri} className="even:bg-brand-soft/50">
+                // ตารางที่มีช่องรวมไม่ใส่แถบสลับสี — ลายจะขัดกับขอบเขตของกลุ่ม
+                <tr key={ri} className={hasMerge ? '' : 'even:bg-brand-soft/50'}>
                   {columns.map((c) => {
+                    // ช่องที่ถูกรวมเข้ากับแถวบน ไม่ต้องวาดซ้ำ
+                    const span = spanOf(rows, ri, c);
+                    if (span === 0) return null;
+
                     const v = r[c.key] ?? null;
+
+                    if (c.kind === 'months') {
+                      return (
+                        <td key={c.key} rowSpan={span} className="border border-line px-[0.4cqw] align-middle">
+                          <MonthBar range={Array.isArray(v) ? v : null} />
+                        </td>
+                      );
+                    }
+
                     const numeric = typeof v === 'number';
                     return (
                       <td
                         key={c.key}
-                        className={`border border-line px-[0.8cqw] py-[0.4cqw] leading-tight ${
+                        rowSpan={span}
+                        className={`border border-line px-[0.6cqw] ${hasMerge ? 'py-[0.15cqw]' : 'py-[0.4cqw]'} leading-tight ${
                           numeric ? 'text-right tabular-nums' : 'text-left'
-                        }`}
+                        } ${span > 1 ? 'align-middle' : ''}`}
                       >
                         {/* null = ยังไม่กรอก แสดงว่าง · ไม่ยุบรวมกับ "ไม่มีรายการ" */}
                         {v === null

@@ -165,13 +165,36 @@ export interface ScanBlock {
   driveFolderId?: string;      // ดึงภาพล่าสุดของเดือนนั้น (เช่นภาพแคป AppSheet)
 }
 
+export interface ListColumn {
+  key: string;
+  label: string;
+  unit?: UnitKey;
+  width?: number;      // เปอร์เซ็นต์ของความกว้างตาราง
+  /**
+   * รวมช่องที่ค่าเหมือนกันและอยู่ติดกันเป็นช่องเดียว
+   * ตารางแผนงานต้นฉบับใช้ช่องรวมแบบนี้ ("ที่", "ผู้รับผิดชอบ") จึงอ่านง่ายและสั้นลงมาก
+   */
+  merge?: boolean;
+  /**
+   * 'months' = แถบช่วงเดือน 12 ช่อง · ค่าในแถวเป็น [เดือนเริ่ม, เดือนจบ] (1–12)
+   * ของเดิมกาง 12 เดือน × 5 สัปดาห์ = 60 ช่อง กินพื้นที่ครึ่งสไลด์
+   * เพื่อบอกแค่ว่า "ทำทั้งปี" — ย่อเหลือ 12 ช่องได้ความหมายเท่าเดิม
+   */
+  kind?: 'text' | 'months';
+}
+
+/** ค่าในช่องตารางรายการ · คู่ตัวเลขใช้กับคอลัมน์ชนิด months */
+export type ListCell = string | number | null | [number, number];
+
 export interface ListTableBlock {
   type: 'list-table';
   id: string;
   title: string;
   mode: FillMode;
-  columns: Array<{ key: string; label: string; unit?: UnitKey; width?: number }>;
-  rows: Array<Record<string, string | number | null>>;
+  columns: ListColumn[];
+  rows: Array<Record<string, ListCell>>;
+  /** แถวต่อหนึ่งหน้า — ตารางแถวสั้น ๆ ใส่ได้มากกว่าค่าเริ่มต้น */
+  rowsPerSlide?: number;
 }
 
 export interface TextBlock {

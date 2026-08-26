@@ -121,7 +121,8 @@ function splitBlock(section: DeckSection, block: DeckBlock): DeckSlide[] {
       break;
     case 'list-table':
       keys = byIndex(((block.raw.rows as unknown[] | undefined) ?? []).length);
-      limit = MAX_ROWS_PER_SLIDE;
+      // ตารางแผนงานแถวสั้นบรรทัดเดียว ใส่ได้มากกว่าค่าเริ่มต้น · ตั้งได้ที่ config
+      limit = (block.raw.rowsPerSlide as number | undefined) ?? MAX_ROWS_PER_SLIDE;
       break;
     case 'photo-grid': {
       // กริดเต็มหนึ่งหน้าตามที่ config กำหนด · เกินกว่านั้นขึ้นหน้าใหม่เอง
