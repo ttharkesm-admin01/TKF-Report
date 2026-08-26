@@ -6,13 +6,105 @@ import sectionsConfig from '@/config/sections.json';
 import roundConfig from '@/config/round.json';
 import { entrySections, monthIndex, monthLabel, prevMonthLabel, totalCells } from '@/lib/entry';
 import { formatJsonFile } from '@/lib/jsonFormat';
-import { formatCell, type Cell } from '@/shared/schema';
+import { UNITS, formatCell, type Cell, type UnitKey } from '@/shared/schema';
 import { CommitPanel } from '@/components/arrange/CommitPanel';
 
 const STORAGE = `entry:${roundConfig.year}-${roundConfig.month}`;
 
 /** คีย์ของช่องหนึ่งช่อง */
 const cellKey = (blockId: string, rowKey: string) => `${blockId}.${rowKey}`;
+
+/** แถวที่ผู้ใช้เพิ่มเองจากหน้าเว็บ ยังไม่ได้อยู่ใน sections.json */
+interface NewRow {
+  key: string;
+  label: string;
+  unit: UnitKey;
+}
+
+interface Draft {
+  edits: Record<string, Cell>;
+  added: Record<string, NewRow[]>;
+}
+
+const UNIT_KEYS = Object.keys(UNITS) as UnitKey[];
+
+/**
+ * ปีหนึ่งมี 12 เดือนเสมอ แถวใหม่จึงเกิดมาพร้อมช่องครบ 12 ช่องได้เลย
+ * ไม่ต้องถามใครว่าตารางกว้างเท่าไร
+ */
+const emptyYear = (): Cell[] => Array<Cell>(12).fill(null);
+
+/** ปุ่มเพิ่มรายการของตารางหนึ่งตาราง */
+function AddRowForm({
+  defaultUnit,
+  onAdd,
+}: {
+  defaultUnit: UnitKey;
+  onAdd: (label: string, unit: UnitKey) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [label, setLabel] = useState('');
+  const [unit, setUnit] = useState<UnitKey>(defaultUnit);
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="mt-2 rounded border border-dashed border-line px-3 py-1.5 text-sm text-ink-soft hover:border-brand hover:text-brand"
+      >
+        + เพิ่มรายการ
+      </button>
+    );
+  }
+
+  const submit = () => {
+    const name = label.trim();
+    if (!name) return;
+    onAdd(name, unit);
+    setLabel('');
+    setOpen(false);
+  };
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 rounded border border-brand bg-brand-soft/40 p-2">
+      <input
+        autoFocus
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && submit()}
+        placeholder="ชื่อรายการใหม่"
+        className="min-w-0 flex-1 rounded border border-line px-2 py-1 text-sm"
+      />
+      <select
+        value={unit}
+        onChange={(e) => setUnit(e.target.value as UnitKey)}
+        className="shrink-0 rounded border border-line bg-white px-2 py-1 text-sm"
+      >
+        {UNIT_KEYS.map((u) => (
+          <option key={u} value={u}>
+            {UNITS[u].label}
+          </option>
+        ))}
+      </select>
+      <button
+        onClick={submit}
+        disabled={!label.trim()}
+        className="shrink-0 rounded bg-brand px-3 py-1 text-sm font-semibold text-white disabled:opacity-40"
+      >
+        เพิ่ม
+      </button>
+      <button
+        onClick={() => {
+          setOpen(false);
+          setLabel('');
+        }}
+        className="shrink-0 rounded border border-line px-3 py-1 text-sm text-ink-soft"
+      >
+        ยกเลิก
+      </button>
+    </div>
+  );
+}
 
 /**
  * ข้อความที่พิมพ์ในช่อง → ค่าที่เก็บจริง
@@ -28,6 +120,7 @@ function parseCell(text: string): Cell {
 export default function EditPage() {
   // เก็บเฉพาะช่องที่แก้ ไม่ใช่ทั้ง config — กันเผลอทับส่วนอื่นของไฟล์
   const [edits, setEdits] = useState<Record<string, Cell>>({});
+  const [added, setAdded] = useState<Record<string, NewRow[]>>({});
   const [text, setText] = useState<Record<string, string>>({});
   const [loaded, setLoaded] = useState(false);
 
@@ -35,11 +128,20 @@ export default function EditPage() {
     try {
       const raw = localStorage.getItem(STORAGE);
       if (raw) {
-        const saved = JSON.parse(raw) as Record<string, Cell>;
-        setEdits(saved);
+        const parsed = JSON.parse(raw) as Draft | Record<string, Cell>;
+        // งานค้างที่เก็บไว้ก่อนมีปุ่มเพิ่มรายการเป็นแค่ก้อน edits เปล่า ๆ
+        const draft: Draft =
+          parsed && typeof parsed === 'object' && 'edits' in parsed
+            ? (parsed as Draft)
+            : { edits: parsed as Record<string, Cell>, added: {} };
+        setEdits(draft.edits ?? {});
+        setAdded(draft.added ?? {});
         setText(
           Object.fromEntries(
-            Object.entries(saved).map(([k, v]) => [k, typeof v === 'number' ? String(v) : '']),
+            Object.entries(draft.edits ?? {}).map(([k, v]) => [
+              k,
+              typeof v === 'number' ? String(v) : '',
+            ]),
           ),
         );
       }
@@ -52,11 +154,11 @@ export default function EditPage() {
   useEffect(() => {
     if (!loaded) return;
     try {
-      localStorage.setItem(STORAGE, JSON.stringify(edits));
+      localStorage.setItem(STORAGE, JSON.stringify({ edits, added } satisfies Draft));
     } catch {
       /* ไม่เป็นไร */
     }
-  }, [edits, loaded]);
+  }, [edits, added, loaded]);
 
   const valueOf = (blockId: string, rowKey: string, fallback: Cell): Cell => {
     const k = cellKey(blockId, rowKey);
@@ -65,6 +167,26 @@ export default function EditPage() {
 
   const setCell = (blockId: string, rowKey: string, v: Cell) =>
     setEdits((p) => ({ ...p, [cellKey(blockId, rowKey)]: v }));
+
+  /** คีย์ที่ยังไม่ถูกใช้ในตารางนี้ — ทั้งของเดิมและที่เพิ่งเพิ่ม */
+  function freeKey(blockId: string, existing: string[]): string {
+    const taken = new Set([...existing, ...(added[blockId] ?? []).map((r) => r.key)]);
+    let n = 1;
+    while (taken.has(`custom-${n}`)) n += 1;
+    return `custom-${n}`;
+  }
+
+  const addRow = (blockId: string, row: NewRow) =>
+    setAdded((p) => ({ ...p, [blockId]: [...(p[blockId] ?? []), row] }));
+
+  const removeRow = (blockId: string, key: string) => {
+    setAdded((p) => ({ ...p, [blockId]: (p[blockId] ?? []).filter((r) => r.key !== key) }));
+    setEdits((p) => {
+      const next = { ...p };
+      delete next[cellKey(blockId, key)];
+      return next;
+    });
+  };
 
   const filled = useMemo(() => {
     let n = 0;
@@ -81,18 +203,29 @@ export default function EditPage() {
     for (const section of clone.sections as Array<{ blocks: Array<Record<string, unknown>> }>) {
       for (const block of section.blocks) {
         if (block.type !== 'monthly-matrix') continue;
-        const rows = block.rows as Array<{ key: string; values: Cell[] }> | undefined;
+        const rows = block.rows as Array<Record<string, unknown>> | undefined;
         if (!rows) continue;
+        const id = block.id as string;
+
         for (const row of rows) {
-          const k = cellKey(block.id as string, row.key);
-          if (k in edits) row.values[monthIndex] = edits[k];
+          const k = cellKey(id, row.key as string);
+          if (k in edits) (row.values as Cell[])[monthIndex] = edits[k];
+        }
+
+        // แถวที่เพิ่มจากหน้าเว็บต่อท้ายตาราง พร้อมช่องครบ 12 เดือน
+        for (const nr of added[id] ?? []) {
+          const values = emptyYear();
+          const k = cellKey(id, nr.key);
+          if (k in edits) values[monthIndex] = edits[k];
+          rows.push({ key: nr.key, label: nr.label, unit: nr.unit, values });
         }
       }
     }
     return clone;
-  }, [edits]);
+  }, [edits, added]);
 
-  const changedCount = Object.keys(edits).length;
+  const addedCount = Object.values(added).reduce((n, a) => n + a.length, 0);
+  const changedCount = Object.keys(edits).length + addedCount;
 
   const commitList = changedCount
     ? [{ path: 'config/sections.json', content: formatJsonFile(nextConfig as never) }]
@@ -111,11 +244,17 @@ export default function EditPage() {
         <br />
         ช่องว่าง = ยังไม่กรอก · กด <b>ไม่มีรายการ</b> เมื่อเดือนนี้ไม่มีรายการนั้นจริง ๆ
         (สไลด์จะขึ้น <span className="font-mono">-</span> แทนที่จะปล่อยว่าง)
+        <br />
+        มีรายการใหม่ที่ยังไม่มีในตาราง กด <b>+ เพิ่มรายการ</b> ท้ายตารางนั้นได้เลย
+        ระบบเปิดช่องให้ครบ 12 เดือนเอง
       </p>
 
       <p className="mt-4 rounded bg-brand-soft px-4 py-2.5 text-sm">
         กรอกแล้ว <b>{filled}</b> จาก {totalCells} ช่อง
-        {changedCount > 0 && <> · แก้ในรอบนี้ {changedCount} ช่อง</>}
+        {Object.keys(edits).length > 0 && <> · แก้ในรอบนี้ {Object.keys(edits).length} ช่อง</>}
+        {addedCount > 0 && (
+          <span className="font-medium text-accent"> · เพิ่มรายการใหม่ {addedCount} รายการ</span>
+        )}
       </p>
 
       {entrySections.map((s) => (
@@ -129,7 +268,21 @@ export default function EditPage() {
               <h3 className="text-sm font-medium text-ink-soft">{b.title}</h3>
 
               <ul className="mt-2 divide-y divide-line">
-                {b.rows.map((r) => {
+                {[
+                  ...b.rows.map((r) => ({ ...r, isNew: false })),
+                  // แถวที่เพิ่งเพิ่มต่อท้าย ยังไม่มีค่าเดือนก่อนให้เทียบ
+                  ...(added[b.blockId] ?? []).map((nr) => ({
+                    blockId: b.blockId,
+                    rowKey: nr.key,
+                    label: nr.label,
+                    unit: nr.unit,
+                    unitLabel: UNITS[nr.unit].label,
+                    current: null as Cell,
+                    previous: null as Cell,
+                    note: undefined as string | undefined,
+                    isNew: true,
+                  })),
+                ].map((r) => {
                   const k = cellKey(b.blockId, r.rowKey);
                   const v = valueOf(b.blockId, r.rowKey, r.current);
                   const isNone = v === 'none';
@@ -137,6 +290,11 @@ export default function EditPage() {
                     <li key={r.rowKey} className="flex flex-wrap items-center gap-2 py-2">
                       <span className="min-w-0 flex-1 text-sm">
                         {r.label}
+                        {r.isNew && (
+                          <span className="ml-1.5 rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-ink">
+                            ใหม่
+                          </span>
+                        )}
                         {r.note && (
                           <span className="ml-1 text-xs text-accent" title={r.note}>
                             *
@@ -146,7 +304,7 @@ export default function EditPage() {
 
                       {prevMonthLabel && (
                         <span className="w-28 shrink-0 text-right font-mono text-xs text-ink-soft">
-                          {prevMonthLabel} {formatCell(r.previous, r.unit) || '—'}
+                          {r.isNew ? '' : `${prevMonthLabel} ${formatCell(r.previous, r.unit) || '—'}`}
                         </span>
                       )}
 
@@ -177,10 +335,32 @@ export default function EditPage() {
                       >
                         ไม่มีรายการ
                       </button>
+
+                      {/* ลบได้เฉพาะแถวที่ยังไม่ได้ส่ง — แถวเดิมมีข้อมูลย้อนหลังอยู่ ลบทิ้งไม่ได้จากหน้านี้ */}
+                      {r.isNew && (
+                        <button
+                          onClick={() => removeRow(b.blockId, r.rowKey)}
+                          className="shrink-0 rounded border border-line px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                          aria-label={`ลบ ${r.label}`}
+                        >
+                          ลบ
+                        </button>
+                      )}
                     </li>
                   );
                 })}
               </ul>
+
+              <AddRowForm
+                defaultUnit={b.rows[0]?.unit ?? 'baht'}
+                onAdd={(label, unit) =>
+                  addRow(b.blockId, {
+                    key: freeKey(b.blockId, b.rows.map((r) => r.rowKey)),
+                    label,
+                    unit,
+                  })
+                }
+              />
             </div>
           ))}
         </section>
