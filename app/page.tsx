@@ -40,6 +40,12 @@ export default function Home() {
         >
           ลงรูป
         </Link>
+        <Link
+          href="/structure"
+          className="rounded border border-line px-5 py-2.5 font-semibold text-ink-soft hover:bg-neutral-50"
+        >
+          แก้โครงสร้าง
+        </Link>
       </div>
 
       {/* ---------- สารบัญ ---------- */}

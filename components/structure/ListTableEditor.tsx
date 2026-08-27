@@ -1,0 +1,211 @@
+'use client';
+
+import type { ListCell, ListColumn } from '@/shared/schema';
+import { freeColumnKey, type RawBlock } from '@/lib/structure';
+
+type Row = Record<string, ListCell>;
+
+const KINDS = [
+  { value: 'text', label: 'ข้อความ / ตัวเลข' },
+  { value: 'months', label: 'แถบ 12 เดือน' },
+] as const;
+
+/** แก้คอลัมน์และแถวของตารางรายการ — ทั้งหมดเก็บลง config ไม่มีอะไร hardcode ในโค้ด */
+export function ListTableEditor({
+  block,
+  onChange,
+}: {
+  block: RawBlock;
+  onChange: (patch: Partial<RawBlock>) => void;
+}) {
+  const columns = (block.columns as ListColumn[] | undefined) ?? [];
+  const rows = (block.rows as Row[] | undefined) ?? [];
+
+  const setColumns = (c: ListColumn[]) => onChange({ columns: c });
+  const setRows = (r: Row[]) => onChange({ rows: r });
+
+  const patchCol = (i: number, p: Partial<ListColumn>) =>
+    setColumns(columns.map((c, k) => (k === i ? { ...c, ...p } : c)));
+
+  const addColumn = () =>
+    setColumns([...columns, { key: freeColumnKey(columns), label: 'คอลัมน์ใหม่' }]);
+
+  const removeColumn = (i: number) => {
+    const gone = columns[i].key;
+    setColumns(columns.filter((_, k) => k !== i));
+    // ทิ้งค่าของคอลัมน์ที่ลบออกจากทุกแถวด้วย ไม่งั้นเหลือค้างในไฟล์แบบมองไม่เห็น
+    setRows(
+      rows.map((r) => {
+        const next = { ...r };
+        delete next[gone];
+        return next;
+      }),
+    );
+  };
+
+  const moveColumn = (i: number, d: number) => {
+    const j = i + d;
+    if (j < 0 || j >= columns.length) return;
+    const next = [...columns];
+    [next[i], next[j]] = [next[j], next[i]];
+    setColumns(next);
+  };
+
+  const addRow = () => setRows([...rows, Object.fromEntries(columns.map((c) => [c.key, null]))]);
+  const removeRow = (i: number) => setRows(rows.filter((_, k) => k !== i));
+  const moveRow = (i: number, d: number) => {
+    const j = i + d;
+    if (j < 0 || j >= rows.length) return;
+    const next = [...rows];
+    [next[i], next[j]] = [next[j], next[i]];
+    setRows(next);
+  };
+  const setCell = (i: number, key: string, v: ListCell) =>
+    setRows(rows.map((r, k) => (k === i ? { ...r, [key]: v } : r)));
+
+  return (
+    <div className="mt-3 rounded border border-line bg-neutral-50 p-3">
+      {/* ---------- คอลัมน์ ---------- */}
+      <p className="text-sm font-medium">คอลัมน์</p>
+      {columns.length === 0 && (
+        <p className="mt-1 text-xs text-ink-soft">
+          ยังไม่มีคอลัมน์ — ตารางนี้จะขึ้นเป็นช่องว่างบนสไลด์จนกว่าจะเพิ่ม
+        </p>
+      )}
+
+      <ul className="mt-2 space-y-1.5">
+        {columns.map((c, i) => (
+          <li key={c.key} className="flex flex-wrap items-center gap-1.5 text-sm">
+            <input
+              value={c.label}
+              onChange={(e) => patchCol(i, { label: e.target.value })}
+              placeholder="ชื่อคอลัมน์"
+              className="min-w-0 flex-1 rounded border border-line px-2 py-1"
+            />
+            <select
+              value={c.kind ?? 'text'}
+              onChange={(e) => patchCol(i, { kind: e.target.value as ListColumn['kind'] })}
+              className="rounded border border-line bg-white px-1.5 py-1 text-xs"
+            >
+              {KINDS.map((k) => (
+                <option key={k.value} value={k.value}>
+                  {k.label}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min={3}
+              max={60}
+              value={c.width ?? ''}
+              onChange={(e) =>
+                patchCol(i, { width: e.target.value ? Number(e.target.value) : undefined })
+              }
+              placeholder="กว้าง%"
+              className="w-20 rounded border border-line px-1.5 py-1 text-xs"
+            />
+            <label className="flex items-center gap-1 text-xs text-ink-soft" title="รวมช่องที่ค่าซ้ำกันติดกัน">
+              <input
+                type="checkbox"
+                checked={Boolean(c.merge)}
+                onChange={(e) => patchCol(i, { merge: e.target.checked || undefined })}
+              />
+              รวมช่อง
+            </label>
+            <button onClick={() => moveColumn(i, -1)} disabled={i === 0}
+              className="rounded border border-line px-1.5 disabled:opacity-30">◀</button>
+            <button onClick={() => moveColumn(i, 1)} disabled={i === columns.length - 1}
+              className="rounded border border-line px-1.5 disabled:opacity-30">▶</button>
+            <button onClick={() => removeColumn(i)}
+              className="rounded border border-line px-1.5 text-xs text-red-600 hover:bg-red-50">ลบ</button>
+          </li>
+        ))}
+      </ul>
+
+      <button onClick={addColumn}
+        className="mt-2 rounded border border-dashed border-line px-2.5 py-1 text-xs text-ink-soft hover:border-brand hover:text-brand">
+        + เพิ่มคอลัมน์
+      </button>
+
+      {/* ---------- แถว ---------- */}
+      {columns.length > 0 && (
+        <>
+          <p className="mt-4 text-sm font-medium">แถว ({rows.length})</p>
+          <div className="mt-2 overflow-x-auto">
+            <table className="w-full min-w-[560px] border-collapse text-xs">
+              <thead>
+                <tr className="bg-brand text-white">
+                  <th className="border border-line px-1 py-1 w-16">ลำดับ</th>
+                  {columns.map((c) => (
+                    <th key={c.key} className="border border-line px-1.5 py-1 text-left">{c.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={i}>
+                    <td className="border border-line px-1 py-1 whitespace-nowrap">
+                      <button onClick={() => moveRow(i, -1)} disabled={i === 0}
+                        className="px-1 disabled:opacity-30">▲</button>
+                      <button onClick={() => moveRow(i, 1)} disabled={i === rows.length - 1}
+                        className="px-1 disabled:opacity-30">▼</button>
+                      <button onClick={() => removeRow(i)}
+                        className="px-1 text-red-600">✕</button>
+                    </td>
+                    {columns.map((c) => {
+                      const v = r[c.key] ?? null;
+                      if (c.kind === 'months') {
+                        const range = Array.isArray(v) ? v : [1, 12];
+                        return (
+                          <td key={c.key} className="border border-line px-1.5 py-1">
+                            <span className="flex items-center gap-1">
+                              <input type="number" min={1} max={12} value={range[0]}
+                                onChange={(e) => setCell(i, c.key, [Number(e.target.value), range[1]])}
+                                className="w-12 rounded border border-line px-1" />
+                              <span>–</span>
+                              <input type="number" min={1} max={12} value={range[1]}
+                                onChange={(e) => setCell(i, c.key, [range[0], Number(e.target.value)])}
+                                className="w-12 rounded border border-line px-1" />
+                            </span>
+                          </td>
+                        );
+                      }
+                      return (
+                        <td key={c.key} className="border border-line px-1.5 py-1">
+                          <input
+                            value={v === null ? '' : String(v)}
+                            onChange={(e) => setCell(i, c.key, e.target.value || null)}
+                            className="w-full min-w-24 rounded border border-line px-1 py-0.5"
+                          />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <button onClick={addRow}
+            className="mt-2 rounded border border-dashed border-line px-2.5 py-1 text-xs text-ink-soft hover:border-brand hover:text-brand">
+            + เพิ่มแถว
+          </button>
+
+          <label className="mt-3 flex items-center gap-2 text-xs text-ink-soft">
+            แถวต่อหนึ่งหน้า
+            <input
+              type="number" min={1} max={40}
+              value={(block.rowsPerSlide as number | undefined) ?? ''}
+              onChange={(e) =>
+                onChange({ rowsPerSlide: e.target.value ? Number(e.target.value) : undefined })
+              }
+              placeholder="9"
+              className="w-16 rounded border border-line px-1.5 py-1"
+            />
+            <span>เกินกว่านี้ขึ้นหน้าใหม่ · ว่างไว้ = 9</span>
+          </label>
+        </>
+      )}
+    </div>
+  );
+}
