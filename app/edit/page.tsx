@@ -6,12 +6,15 @@ import roundConfig from '@/config/round.json';
 import { buildSections, type RawConfig } from '@/lib/deck';
 import {
   buildEntrySections,
+  buildTextEntries,
   countCells,
   entrySections,
   monthIndex,
   monthLabel,
   prevMonthLabel,
+  textEntries,
 } from '@/lib/entry';
+import { fitBody, parseBody } from '@/lib/text';
 import { formatJsonFile } from '@/lib/jsonFormat';
 import { UNITS, formatCell, type Cell, type UnitKey } from '@/shared/schema';
 import { readJsonFile } from '@/lib/github';
@@ -34,6 +37,8 @@ interface NewRow {
 interface Draft {
   edits: Record<string, Cell>;
   added: Record<string, NewRow[]>;
+  /** ข้อความของบล็อก `text` ที่พิมพ์ค้างไว้ · คีย์เป็น blockId */
+  bodies?: Record<string, string>;
 }
 
 const UNIT_KEYS = Object.keys(UNITS) as UnitKey[];
@@ -139,6 +144,7 @@ export default function EditPage() {
   const [edits, setEdits] = useState<Record<string, Cell>>({});
   const [added, setAdded] = useState<Record<string, NewRow[]>>({});
   const [text, setText] = useState<Record<string, string>>({});
+  const [bodies, setBodies] = useState<Record<string, string>>({});
   const [loaded, setLoaded] = useState(false);
 
   /** sections.json ตัวปัจจุบันในรีโป — null = ยังไม่ได้ดึง หรือดึงไม่ได้ */
@@ -199,6 +205,18 @@ export default function EditPage() {
 
   const totalCells = useMemo(() => countCells(view), [view]);
 
+  /** บล็อกข้อความ — ประกอบจากของสดเช่นเดียวกับช่องตัวเลข */
+  const textView = useMemo(
+    () => (live ? buildTextEntries(buildSections(live)) : textEntries),
+    [live],
+  );
+
+  /** ข้อความที่พิมพ์แล้วต่างจากของในรีโปจริง ๆ · พิมพ์แล้วลบกลับเท่าเดิมไม่นับว่าแก้ */
+  const changedBodies = useMemo(
+    () => textView.filter((t) => t.blockId in bodies && bodies[t.blockId] !== t.body),
+    [bodies, textView],
+  );
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE);
@@ -211,6 +229,7 @@ export default function EditPage() {
             : { edits: parsed as Record<string, Cell>, added: {} };
         setEdits(draft.edits ?? {});
         setAdded(draft.added ?? {});
+        setBodies(draft.bodies ?? {});
         setText(
           Object.fromEntries(
             Object.entries(draft.edits ?? {}).map(([k, v]) => [
@@ -229,11 +248,11 @@ export default function EditPage() {
   useEffect(() => {
     if (!loaded) return;
     try {
-      localStorage.setItem(STORAGE, JSON.stringify({ edits, added } satisfies Draft));
+      localStorage.setItem(STORAGE, JSON.stringify({ edits, added, bodies } satisfies Draft));
     } catch {
       /* ไม่เป็นไร */
     }
-  }, [edits, added, loaded]);
+  }, [edits, added, bodies, loaded]);
 
   const valueOf = (blockId: string, rowKey: string, fallback: Cell): Cell => {
     const k = cellKey(blockId, rowKey);
@@ -291,6 +310,11 @@ export default function EditPage() {
       blocks: Array<Record<string, unknown>>;
     }>) {
       for (const block of section.blocks) {
+        if (block.type === 'text') {
+          const id = block.id as string;
+          if (id in bodies) block.body = bodies[id];
+          continue;
+        }
         if (block.type !== 'monthly-matrix') continue;
         const rows = block.rows as Array<Record<string, unknown>> | undefined;
         if (!rows) continue;
@@ -321,7 +345,7 @@ export default function EditPage() {
   };
 
   const addedCount = Object.values(added).reduce((n, a) => n + a.length, 0);
-  const changedCount = Object.keys(edits).length + addedCount;
+  const changedCount = Object.keys(edits).length + addedCount + changedBodies.length;
 
   /**
    * ช่องที่เคยมีตัวเลขอยู่แล้วแต่กำลังจะกลายเป็นว่าง
@@ -343,6 +367,15 @@ export default function EditPage() {
 
   const isErasing = (blockId: string, rowKey: string) =>
     erasing.some((e) => e.blockId === blockId && e.rowKey === rowKey);
+
+  /** ข้อความ commit ที่บอกว่าแก้อะไรไปบ้าง — ตัวเลขกับข้อความนับคนละหน่วย */
+  const commitMessage = (() => {
+    const cells = Object.keys(edits).length + addedCount;
+    const parts: string[] = [];
+    if (cells) parts.push(`${cells} cells`);
+    if (changedBodies.length) parts.push(`${changedBodies.length} texts`);
+    return `Fill ${monthLabel} ${roundConfig.year} figures (${parts.join(', ')})`;
+  })();
 
   /** เรียกตอนกดส่งเท่านั้น — อ่านของสดก่อน แล้วค่อยทาบสิ่งที่แก้ลงไป */
   const getFiles = async (t: string) => {
@@ -523,6 +556,70 @@ export default function EditPage() {
         </section>
       ))}
 
+      {textView.length > 0 && (
+        <section className="mt-10">
+          <h2 className="border-b border-line pb-1.5 text-lg font-semibold">ข้อความสรุป</h2>
+          <p className="mt-2 text-sm text-ink-soft">
+            ต่างจากตาราง — ข้อความมีชุดเดียว ไม่ได้แยกตามเดือน
+            <b>พิมพ์ที่นี่คือพิมพ์ทับของเดือนก่อน</b>
+            <br />
+            เว้นบรรทัดว่างคั่น = ขึ้นย่อหน้าใหม่ · ขึ้นต้นบรรทัดด้วย{' '}
+            <span className="font-mono">-</span> = หัวข้อย่อย
+          </p>
+
+          {textView.map((t) => {
+            const value = t.blockId in bodies ? bodies[t.blockId] : t.body;
+            const over = fitBody(parseBody(value)).overflow;
+            const wiping = t.body.trim() !== '' && value.trim() === '';
+            const changed = t.blockId in bodies && value !== t.body;
+            return (
+              <div key={t.blockId} className="mt-4">
+                <h3 className="text-sm font-medium text-ink-soft">
+                  <span className="font-mono text-brand">{t.sectionNumber}</span> {t.title}
+                </h3>
+                <textarea
+                  value={value}
+                  onChange={(e) => setBodies((p) => ({ ...p, [t.blockId]: e.target.value }))}
+                  rows={7}
+                  placeholder="พิมพ์ข้อความที่จะขึ้นบนสไลด์…"
+                  className={`mt-2 w-full rounded border px-3 py-2 text-sm leading-relaxed ${
+                    over || wiping ? 'border-red-500 bg-red-50' : 'border-line'
+                  }`}
+                />
+                <div className="mt-1 flex flex-wrap items-center gap-3 text-xs">
+                  <span className={over ? 'font-semibold text-red-600' : 'text-ink-soft'}>
+                    {value.length.toLocaleString('en-US')} ตัวอักษร
+                  </span>
+                  {over && (
+                    <span className="font-medium text-red-600">
+                      ยาวเกินหนึ่งสไลด์ — ย่อตัวอักษรจนเล็กสุดแล้วก็ยังไม่พอ
+                      ส่วนที่เกินจะถูกตัดหายทั้งบนจอและใน PDF
+                    </span>
+                  )}
+                  {wiping && (
+                    <span className="font-medium text-red-600">กำลังลบข้อความเดิมทิ้งทั้งหมด</span>
+                  )}
+                  {changed && (
+                    <button
+                      onClick={() =>
+                        setBodies((p) => {
+                          const next = { ...p };
+                          delete next[t.blockId];
+                          return next;
+                        })
+                      }
+                      className="rounded border border-line px-2 py-0.5 text-ink-soft hover:bg-neutral-50"
+                    >
+                      คืนค่าเดิม
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      )}
+
       {erasing.length > 0 && (
         <div className="mt-8 rounded border-2 border-red-500 bg-red-50 p-4">
           <p className="font-semibold text-red-700">
@@ -545,7 +642,7 @@ export default function EditPage() {
       <CommitPanel
         count={changedCount ? 1 : 0}
         getFiles={getFiles}
-        message={`Fill ${monthLabel} ${roundConfig.year} figures (${changedCount} cells)`}
+        message={commitMessage}
         disabled={changedCount === 0}
         onDone={() => {
           // จำคีย์ที่เพิ่งส่งไว้ก่อน — ของสดรอบหน้าอาจยังไม่ทันเห็นแถวเหล่านี้
@@ -560,6 +657,7 @@ export default function EditPage() {
           setEdits({});
           setAdded({});
           setText({});
+          setBodies({});
           // ดึงของสดใหม่ทันที ผู้ใช้จะได้เห็นผลโดยไม่ต้องรอเว็บ build ใหม่
           setReload((n) => n + 1);
           try {

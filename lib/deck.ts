@@ -187,6 +187,7 @@ export const IMPLEMENTED: ReadonlySet<BlockType> = new Set<BlockType>([
   'photo-grid',
   'photo-set',
   'scan',
+  'text',
 ]);
 
 export const isImplemented = (b: DeckBlock): boolean => IMPLEMENTED.has(b.type);

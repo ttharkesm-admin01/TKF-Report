@@ -20,6 +20,7 @@ import {
   type PhotoGridBlock,
   type PhotoSetBlock,
   type ScanBlock,
+  type TextBlock,
   type TrendFacts,
   type UnitKey,
 } from '@/shared/schema';
@@ -35,6 +36,7 @@ export const asList = (b: DeckBlock): ListTableBlock => b.raw as unknown as List
 export const asPhotoGrid = (b: DeckBlock): PhotoGridBlock => b.raw as unknown as PhotoGridBlock;
 export const asPhotoSet = (b: DeckBlock): PhotoSetBlock => b.raw as unknown as PhotoSetBlock;
 export const asScan = (b: DeckBlock): ScanBlock => b.raw as unknown as ScanBlock;
+export const asText = (b: DeckBlock): TextBlock => b.raw as unknown as TextBlock;
 
 export function matrixById(id: string): MatrixBlock | undefined {
   const slide = findSlide(id);
