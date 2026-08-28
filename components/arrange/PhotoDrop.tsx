@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { prepareImage, humanSize, MAX_EDGE, type Prepared } from '@/lib/resize';
+import { IconUpload } from '@/components/ui/icons';
 
 /** ลากรูปใส่ตรงนี้ · ย่อให้เสร็จก่อนคืนออกไป ไม่มีรูปดิบหลุดเข้ารีโป */
 export function PhotoDrop({
@@ -70,8 +71,19 @@ export function PhotoDrop({
         void accept(e.dataTransfer.files);
       }}
       onClick={() => inputRef.current?.click()}
-      className={`cursor-pointer rounded-lg border-2 border-dashed px-6 py-8 text-center transition ${
-        over ? 'border-brand bg-brand-soft' : 'border-line bg-white hover:bg-neutral-50'
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        // ลากไม่ได้ก็ต้องกดจากคีย์บอร์ดได้ — กล่องนี้เป็น div ไม่ใช่ปุ่มจริง
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          inputRef.current?.click();
+        }
+      }}
+      className={`cursor-pointer rounded-xl2 border-2 border-dashed px-6 py-10 text-center transition ${
+        over
+          ? 'border-primary bg-primary-soft'
+          : 'border-edge-strong bg-surface hover:border-primary hover:bg-surface-2'
       }`}
     >
       <input
@@ -84,19 +96,26 @@ export function PhotoDrop({
       />
 
       {busy ? (
-        <p className="text-lg font-semibold text-brand">{busy}</p>
+        <p className="text-lg font-semibold text-primary" role="status">
+          {busy}
+        </p>
       ) : (
         <>
-          <p className="text-lg font-semibold">ลากรูปมาวางตรงนี้</p>
-          <p className="mt-1 text-sm text-ink-soft">หรือคลิกเพื่อเลือกไฟล์ · เลือกทีเดียวหลายร้อยใบได้</p>
-          <p className="mt-2 text-xs text-ink-soft">
+          <IconUpload className="mx-auto h-8 w-8 text-muted" />
+          <p className="mt-2 text-lg font-semibold">ลากรูปมาวางตรงนี้</p>
+          <p className="mt-1 text-sm text-muted">หรือคลิกเพื่อเลือกไฟล์ · เลือกทีเดียวหลายร้อยใบได้</p>
+          <p className="mt-2 text-xs text-muted">
             ย่อให้อัตโนมัติเหลือด้านยาว {MAX_EDGE}px (ยังอ่านวันที่บนรูปออก) ·
             ภาพสแกน PNG ที่เล็กกว่า {humanSize(1_000_000)} เก็บไว้อย่างเดิม
           </p>
         </>
       )}
 
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="mt-3 text-sm text-danger-ink" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

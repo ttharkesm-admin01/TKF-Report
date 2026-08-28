@@ -8,6 +8,7 @@ import { humanSize, type Prepared } from '@/lib/resize';
 import { readJsonFile, type CommitFile } from '@/lib/github';
 import { PhotoDrop } from '@/components/arrange/PhotoDrop';
 import { CommitPanel } from '@/components/arrange/CommitPanel';
+import { IconEye, IconEyeOff, IconLeft, IconRight } from '@/components/ui/icons';
 
 interface Item {
   file: string;
@@ -209,9 +210,9 @@ export default function ArrangePage() {
   return (
     <>
       <SiteNav />
-      <main className="mx-auto max-w-6xl px-6 py-8">
-      <h1 className="text-2xl font-bold text-brand-deep">ลงรูป</h1>
-      <p className="mt-2 text-sm text-ink-soft">
+      <main id="main" className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <h1 className="text-2xl font-bold tracking-tight">ลงรูป</h1>
+      <p className="mt-2 text-sm leading-relaxed text-muted">
         ลากรูปใส่ จัดลำดับ ซ่อนรูปที่ไม่เอา ใส่คำบรรยาย แล้วกดส่งเข้าระบบ
       </p>
 
@@ -220,7 +221,7 @@ export default function ArrangePage() {
         <select
           value={blockId}
           onChange={(e) => setBlockId(e.target.value)}
-          className="mt-1 block w-full rounded border border-line bg-white px-3 py-2 text-base"
+          className="field mt-1.5 text-base"
         >
           {photoBlocks.map((b) => (
             <option key={b.id} value={b.id}>
@@ -230,8 +231,8 @@ export default function ArrangePage() {
         </select>
       </label>
 
-      <p className="mt-2 text-xs text-ink-soft">
-        ลงที่ <span className="font-mono">{folder}</span>
+      <p className="mt-2 text-xs text-muted">
+        ลงที่ <span className="font-mono break-all">{folder}</span>
       </p>
 
       <div className="mt-4">
@@ -239,39 +240,30 @@ export default function ArrangePage() {
       </div>
 
       {items.length === 0 ? (
-        <p className="mt-8 text-center text-ink-soft">ยังไม่มีรูปในบล็อกนี้</p>
+        <p className="card mt-8 px-4 py-10 text-center text-muted">ยังไม่มีรูปในบล็อกนี้</p>
       ) : (
         <>
           <div className="mt-5 flex flex-wrap items-center gap-3 text-sm">
-            <button
-              onClick={resetToFilename}
-              className="rounded border border-line px-4 py-2 text-ink-soft hover:bg-neutral-50"
-            >
+            <button onClick={resetToFilename} className="btn btn-outline">
               เรียงตามชื่อไฟล์ใหม่
             </button>
-            <button
-              onClick={download}
-              className="rounded border border-line px-4 py-2 text-ink-soft hover:bg-neutral-50"
-            >
+            <button onClick={download} className="btn btn-outline">
               บันทึก arrange.json
             </button>
-            <button
-              onClick={copy}
-              className="rounded border border-line px-4 py-2 text-ink-soft hover:bg-neutral-50"
-            >
+            <button onClick={copy} className="btn btn-outline">
               คัดลอก JSON
             </button>
-            <span className="text-ink-soft">
+            <span className="text-muted" role="status">
               {shown} รูปขึ้นสไลด์
               {items.length - shown > 0 && ` · ซ่อน ${items.length - shown}`}
               {pending.length > 0 && (
-                <span className="ml-2 font-medium text-accent">
+                <span className="ml-2 font-medium text-warn-ink">
                   ใหม่ {pending.length} รูป · รวม {humanSize(pendingBytes)}
                   {/* ภาพสแกนที่เล็กอยู่แล้วอาจไม่ได้เล็กลง จึงบอกเฉพาะตอนที่ประหยัดจริง */}
                   {savedBytes > 0 && ` (เล็กลง ${humanSize(savedBytes)})`}
                 </span>
               )}
-              {saved && <span className="ml-2 font-medium text-brand">{saved}</span>}
+              {saved && <span className="ml-2 font-medium text-primary">{saved}</span>}
             </span>
           </div>
 
@@ -289,52 +281,59 @@ export default function ArrangePage() {
                   if (dragFrom !== null) move(dragFrom, i);
                   setDragFrom(null);
                 }}
-                className={`cursor-grab rounded border p-2 active:cursor-grabbing ${
+                className={`cursor-grab rounded-xl border bg-surface p-2 transition active:cursor-grabbing ${
                   it.hidden
-                    ? 'border-dashed border-line bg-neutral-50 opacity-50'
+                    ? 'border-dashed border-edge opacity-50'
                     : it.pending
-                      ? 'border-accent'
-                      : 'border-line'
+                      ? 'border-warn-ink/60 shadow-hair'
+                      : 'border-edge hover:border-edge-strong hover:shadow-hair'
                 }`}
               >
-                <div className="relative overflow-hidden rounded bg-neutral-100">
+                <div className="relative overflow-hidden rounded-lg bg-surface-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={it.src} alt={it.file} className="aspect-[4/3] w-full object-cover" />
-                  <span className="absolute top-0 left-0 bg-black/60 px-1.5 text-xs text-white">
+                  <span className="absolute top-1 left-1 rounded-md bg-black/70 px-1.5 text-xs font-medium text-white tabular-nums">
                     {slideNumbers[i] ?? '—'}
                   </span>
                   {it.pending && (
-                    <span className="absolute top-0 right-0 bg-accent px-1.5 text-xs font-semibold text-ink">
+                    <span className="absolute top-1 right-1 rounded-md bg-accent px-1.5 text-xs font-semibold text-ink">
                       ใหม่
                     </span>
                   )}
                 </div>
 
-                <p className="mt-1 truncate font-mono text-[11px] text-ink-soft" title={it.file}>
+                <p className="mt-1.5 truncate font-mono text-[11px] text-muted" title={it.file}>
                   {it.file}
                 </p>
 
-                <div className="mt-1 flex items-center gap-1">
+                {/* ลากสลับได้ แต่ต้องมีปุ่มด้วย — เมาส์ลากไม่ได้ทุกคนและคีย์บอร์ดลากไม่ได้เลย */}
+                <div className="mt-1.5 flex items-center gap-1">
                   <button
                     onClick={() => move(i, i - 1)}
                     disabled={i === 0}
-                    className="rounded border border-line px-2 text-sm disabled:opacity-30"
-                    aria-label="เลื่อนไปข้างหน้า"
+                    className="btn btn-outline btn-sm w-8 px-0"
+                    aria-label={`เลื่อน ${it.file} ไปข้างหน้า`}
                   >
-                    ◀
+                    <IconLeft className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={() => move(i, i + 1)}
                     disabled={i === items.length - 1}
-                    className="rounded border border-line px-2 text-sm disabled:opacity-30"
-                    aria-label="เลื่อนไปข้างหลัง"
+                    className="btn btn-outline btn-sm w-8 px-0"
+                    aria-label={`เลื่อน ${it.file} ไปข้างหลัง`}
                   >
-                    ▶
+                    <IconRight className="h-3.5 w-3.5" />
                   </button>
                   <button
                     onClick={() => patch(i, { hidden: !it.hidden })}
-                    className="ml-auto rounded border border-line px-2 text-xs"
+                    aria-pressed={it.hidden}
+                    className="btn btn-outline btn-sm ml-auto"
                   >
+                    {it.hidden ? (
+                      <IconEye className="h-3.5 w-3.5" />
+                    ) : (
+                      <IconEyeOff className="h-3.5 w-3.5" />
+                    )}
                     {it.hidden ? 'เอากลับ' : 'ซ่อน'}
                   </button>
                 </div>
@@ -343,7 +342,8 @@ export default function ArrangePage() {
                   value={it.caption}
                   onChange={(e) => patch(i, { caption: e.target.value })}
                   placeholder="คำบรรยาย"
-                  className="mt-1 w-full rounded border border-line px-1.5 py-1 text-xs"
+                  aria-label={`คำบรรยายของ ${it.file}`}
+                  className="field mt-1.5 px-2 py-1 text-xs"
                 />
               </li>
             ))}

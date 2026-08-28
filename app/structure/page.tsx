@@ -21,6 +21,7 @@ import { BLOCK_LABEL } from '@/lib/deck';
 import type { BlockType } from '@/shared/schema';
 import { ListTableEditor } from '@/components/structure/ListTableEditor';
 import { CommitPanel } from '@/components/arrange/CommitPanel';
+import { IconDown, IconPlus, IconRefresh, IconTrash, IconUp } from '@/components/ui/icons';
 
 const CONFIG_PATH = 'config/sections.json';
 
@@ -80,13 +81,13 @@ export default function StructurePage() {
     return (
       <>
       <SiteNav />
-      <main className="mx-auto max-w-3xl px-6 py-8">
-        <h1 className="text-2xl font-bold text-brand-deep">แก้โครงสร้างเด็ค</h1>
-        <p className="mt-3 rounded bg-amber-50 px-4 py-3 text-sm text-amber-800">
+      <main id="main" className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+        <h1 className="text-2xl font-bold tracking-tight">แก้โครงสร้างเด็ค</h1>
+        <p className="note note-warn mt-3" role="status">
           {status || 'กำลังโหลด…'}
         </p>
-        <button onClick={() => void load()}
-          className="mt-3 rounded border border-brand px-4 py-2 text-sm font-semibold text-brand">
+        <button onClick={() => void load()} className="btn btn-outline mt-3">
+          <IconRefresh className="h-4 w-4" />
           โหลดใหม่
         </button>
         <CommitPanel count={0} getFiles={async () => []} message="" disabled onDone={() => {}} />
@@ -98,30 +99,32 @@ export default function StructurePage() {
   return (
     <>
       <SiteNav />
-      <main className="mx-auto max-w-4xl px-6 py-8">
-      <h1 className="text-2xl font-bold text-brand-deep">แก้โครงสร้างเด็ค</h1>
-      <p className="mt-2 text-sm text-ink-soft">
+      <main id="main" className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <h1 className="text-2xl font-bold tracking-tight">แก้โครงสร้างเด็ค</h1>
+      <p className="mt-2 text-sm leading-relaxed text-muted">
         เพิ่ม ลบ เปลี่ยนชื่อ และสลับลำดับตารางได้จากหน้านี้ · ตารางรายการกำหนดคอลัมน์และแถวได้ด้วย
         <br />
         <b>ลำดับบล็อกคือลำดับสไลด์</b> · เลขหัวข้อ (2.1, 2.2…) มาจากลำดับหัวข้อ แก้ที่นี่ไม่ได้
       </p>
 
       {status && (
-        <p className="mt-3 rounded bg-amber-50 px-4 py-2.5 text-sm text-amber-800">{status}</p>
+        <p className="note note-warn mt-3" role="status">
+          {status}
+        </p>
       )}
 
       <div className="mt-4 flex items-center gap-3 text-sm">
-        <button onClick={() => void load()}
-          className="rounded border border-line px-3 py-1.5 text-ink-soft hover:bg-neutral-50">
+        <button onClick={() => void load()} className="btn btn-outline btn-sm">
+          <IconRefresh className="h-3.5 w-3.5" />
           โหลดใหม่จากรีโป
         </button>
-        {dirty && <span className="font-medium text-accent">มีการแก้ที่ยังไม่ได้ส่ง</span>}
+        {dirty && <span className="chip chip-warn">มีการแก้ที่ยังไม่ได้ส่ง</span>}
       </div>
 
       {cfg.sections.map((s, si) => (
         <section key={s.key} className="mt-7">
-          <h2 className="border-b border-line pb-1.5 text-lg font-semibold">
-            <span className="font-mono text-brand">
+          <h2 className="border-b border-edge pb-1.5 text-lg font-semibold">
+            <span className="font-mono text-primary tabular-nums">
               {String(sectionsConfig.department)}.{si + 1}
             </span>{' '}
             {s.title}
@@ -131,9 +134,9 @@ export default function StructurePage() {
             {s.blocks.map((b, bi) => {
               const rows = blockDataCount(b);
               return (
-                <li key={b.id} className="rounded border border-line p-2.5">
+                <li key={b.id} className="card p-2.5 transition hover:border-edge-strong">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="shrink-0 rounded bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand-deep">
+                    <span className="chip chip-brand shrink-0">
                       {BLOCK_LABEL[b.type as BlockType] ?? b.type}
                     </span>
 
@@ -142,19 +145,35 @@ export default function StructurePage() {
                       onChange={(e) => setCfg(patchBlock(cfg, b.id, { title: e.target.value }))}
                       placeholder={b.type === 'cover' ? '(ปกใช้ชื่อหัวข้อเอง)' : 'ชื่อตาราง'}
                       disabled={b.type === 'cover' || b.type === 'closing'}
-                      className="min-w-0 flex-1 rounded border border-line px-2 py-1 text-sm disabled:bg-neutral-100"
+                      aria-label={`ชื่อของบล็อก ${b.id}`}
+                      className="field h-8 min-w-0 flex-1 py-1"
                     />
 
-                    <span className="shrink-0 font-mono text-[11px] text-ink-soft">{b.id}</span>
+                    <span className="shrink-0 font-mono text-[11px] text-muted">{b.id}</span>
 
-                    <button onClick={() => setCfg(moveBlock(cfg, b.id, -1))} disabled={bi === 0}
-                      className="rounded border border-line px-2 text-sm disabled:opacity-30">▲</button>
-                    <button onClick={() => setCfg(moveBlock(cfg, b.id, 1))} disabled={bi === s.blocks.length - 1}
-                      className="rounded border border-line px-2 text-sm disabled:opacity-30">▼</button>
+                    <button
+                      onClick={() => setCfg(moveBlock(cfg, b.id, -1))}
+                      disabled={bi === 0}
+                      aria-label={`เลื่อน ${b.title ?? b.id} ขึ้น`}
+                      className="btn btn-outline btn-sm w-8 px-0"
+                    >
+                      <IconUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setCfg(moveBlock(cfg, b.id, 1))}
+                      disabled={bi === s.blocks.length - 1}
+                      aria-label={`เลื่อน ${b.title ?? b.id} ลง`}
+                      className="btn btn-outline btn-sm w-8 px-0"
+                    >
+                      <IconDown className="h-3.5 w-3.5" />
+                    </button>
 
                     {b.type === 'list-table' && (
-                      <button onClick={() => setOpen(open === b.id ? null : b.id)}
-                        className="rounded border border-brand px-2 py-1 text-xs font-medium text-brand">
+                      <button
+                        onClick={() => setOpen(open === b.id ? null : b.id)}
+                        aria-expanded={open === b.id}
+                        className="btn btn-sm border border-primary text-primary"
+                      >
                         {open === b.id ? 'ปิด' : 'แก้ตาราง'}
                       </button>
                     )}
@@ -167,8 +186,10 @@ export default function StructurePage() {
                         if (confirm(`${warn}ลบ "${b.title ?? b.id}" ออกจากเด็ค?`))
                           setCfg(removeBlock(cfg, b.id));
                       }}
-                      className="rounded border border-line px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                      aria-label={`ลบ ${b.title ?? b.id}`}
+                      className="btn btn-danger btn-sm"
                     >
+                      <IconTrash className="h-3.5 w-3.5" />
                       ลบ
                     </button>
                   </div>
@@ -185,15 +206,25 @@ export default function StructurePage() {
           </ul>
 
           {adding === s.key ? (
-            <div className="mt-2 flex flex-wrap items-center gap-2 rounded border border-brand bg-brand-soft/40 p-2">
-              <select value={newType} onChange={(e) => setNewType(e.target.value)}
-                className="rounded border border-line bg-white px-2 py-1 text-sm">
+            <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-primary bg-primary-soft p-2">
+              <select
+                value={newType}
+                onChange={(e) => setNewType(e.target.value)}
+                aria-label="ชนิดของบล็อกใหม่"
+                className="field h-9 w-auto py-1"
+              >
                 {ADDABLE.map((a) => (
                   <option key={a.type} value={a.type}>{a.label}</option>
                 ))}
               </select>
-              <input autoFocus value={newTitle} onChange={(e) => setNewTitle(e.target.value)}
-                placeholder="ชื่อตาราง" className="min-w-0 flex-1 rounded border border-line px-2 py-1 text-sm" />
+              <input
+                autoFocus
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="ชื่อตาราง"
+                aria-label="ชื่อตารางใหม่"
+                className="field h-9 min-w-0 flex-1 py-1"
+              />
               <button
                 disabled={!newTitle.trim()}
                 onClick={() => {
@@ -201,17 +232,24 @@ export default function StructurePage() {
                   setNewTitle('');
                   setAdding(null);
                 }}
-                className="rounded bg-brand px-3 py-1 text-sm font-semibold text-white disabled:opacity-40"
+                className="btn btn-primary"
               >
                 เพิ่ม
               </button>
-              <button onClick={() => { setAdding(null); setNewTitle(''); }}
-                className="rounded border border-line px-3 py-1 text-sm text-ink-soft">ยกเลิก</button>
+              <button
+                onClick={() => {
+                  setAdding(null);
+                  setNewTitle('');
+                }}
+                className="btn btn-outline"
+              >
+                ยกเลิก
+              </button>
             </div>
           ) : (
-            <button onClick={() => setAdding(s.key)}
-              className="mt-2 rounded border border-dashed border-line px-3 py-1.5 text-sm text-ink-soft hover:border-brand hover:text-brand">
-              + เพิ่มตารางในหัวข้อนี้
+            <button onClick={() => setAdding(s.key)} className="btn btn-dashed mt-2">
+              <IconPlus className="h-4 w-4" />
+              เพิ่มตารางในหัวข้อนี้
             </button>
           )}
         </section>

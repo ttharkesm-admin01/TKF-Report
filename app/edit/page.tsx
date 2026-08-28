@@ -27,6 +27,7 @@ import { readJsonFile } from '@/lib/github';
 import { useToken } from '@/lib/useToken';
 import { CommitPanel } from '@/components/arrange/CommitPanel';
 import { SiteNav } from '@/components/nav/SiteNav';
+import { IconAlert, IconDown, IconPlus, IconRight, IconTrash } from '@/components/ui/icons';
 
 /**
  * งานค้างเก็บทั้งปีในกุญแจเดียว — ของเดิมแยกตามเดือนของรอบ
@@ -113,9 +114,10 @@ function AddRowForm({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="mt-2 rounded border border-dashed border-line px-3 py-1.5 text-sm text-ink-soft hover:border-brand hover:text-brand"
+        className="btn btn-dashed btn-sm mt-2"
       >
-        + เพิ่มรายการ
+        <IconPlus className="h-3.5 w-3.5" />
+        เพิ่มรายการ
       </button>
     );
   }
@@ -129,19 +131,21 @@ function AddRowForm({
   };
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2 rounded border border-brand bg-brand-soft/40 p-2">
+    <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-primary bg-primary-soft p-2">
       <input
         autoFocus
         value={label}
         onChange={(e) => setLabel(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && submit()}
         placeholder="ชื่อรายการใหม่"
-        className="min-w-0 flex-1 rounded border border-line px-2 py-1 text-sm"
+        aria-label="ชื่อรายการใหม่"
+        className="field h-9 min-w-0 flex-1 py-1"
       />
       <select
         value={unit}
         onChange={(e) => setUnit(e.target.value as UnitKey)}
-        className="shrink-0 rounded border border-line bg-white px-2 py-1 text-sm"
+        aria-label="หน่วยของรายการใหม่"
+        className="field h-9 w-auto shrink-0 py-1"
       >
         {UNIT_KEYS.map((u) => (
           <option key={u} value={u}>
@@ -152,7 +156,7 @@ function AddRowForm({
       <button
         onClick={submit}
         disabled={!label.trim()}
-        className="shrink-0 rounded bg-brand px-3 py-1 text-sm font-semibold text-white disabled:opacity-40"
+        className="btn btn-primary"
       >
         เพิ่ม
       </button>
@@ -161,7 +165,7 @@ function AddRowForm({
           setOpen(false);
           setLabel('');
         }}
-        className="shrink-0 rounded border border-line px-3 py-1 text-sm text-ink-soft"
+        className="btn btn-outline"
       >
         ยกเลิก
       </button>
@@ -653,14 +657,14 @@ export default function EditPage() {
     const future = m > monthIndex;
 
     const tone = erasingKeys.has(k)
-      ? 'border-red-500 bg-red-50'
+      ? 'border-danger-ink bg-danger-soft text-danger-ink'
       : suspectKeys.has(k)
-        ? 'border-amber-500 bg-amber-50'
+        ? 'border-warn-ink bg-warn-soft text-warn-ink'
         : k in edits
-          ? 'border-brand bg-brand-soft/50'
+          ? 'border-primary bg-primary-soft'
           : future
-            ? 'border-line bg-neutral-50 text-ink-soft'
-            : 'border-line';
+            ? 'border-edge bg-surface-2 text-muted'
+            : 'border-edge bg-surface';
 
     return (
       <input
@@ -678,7 +682,7 @@ export default function EditPage() {
         onKeyDown={(e) => onKey(e, k)}
         onFocus={(e) => e.currentTarget.select()}
         placeholder={future ? '' : '—'}
-        className={`w-full rounded border px-1.5 py-1 text-right font-mono text-sm tabular-nums outline-none focus:border-brand focus:ring-2 focus:ring-brand/30 ${tone} ${
+        className={`w-full rounded-md border px-1.5 py-1 text-right font-mono text-sm tabular-nums transition focus:border-primary ${tone} ${
           isRound ? 'font-semibold' : ''
         }`}
       />
@@ -694,23 +698,23 @@ export default function EditPage() {
     <>
       <SiteNav />
 
-      <main className="mx-auto max-w-7xl px-4 py-6">
-        <h1 className="text-2xl font-bold text-brand-deep">กรอกตัวเลข</h1>
-        <p className="mt-1 text-sm text-ink-soft">
+      <main id="main" className="mx-auto max-w-7xl px-4 py-6">
+        <h1 className="text-2xl font-bold tracking-tight">กรอกตัวเลข</h1>
+        <p className="mt-1 text-sm leading-relaxed text-muted">
           ทุกตาราง 12 เดือนในเด็ครวมอยู่ในหน้านี้หน้าเดียว · เลือกเดือนไหนก็กรอกได้
           ไม่ได้ล็อกไว้ที่เดือนของรอบเหมือนเดิม
         </p>
 
         {/* ---------- แถบเดือน: เลือกเดือน + เห็นทันทีว่าเดือนไหนค้าง ---------- */}
-        <section className="mt-5 rounded-lg border border-line bg-paper p-3">
+        <section className="card-pad mt-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-sm font-semibold">เลือกเดือนที่จะกรอก</h2>
-            <p className="text-xs text-ink-soft">
+            <p className="text-xs text-muted">
               ตัวเลขใต้ชื่อเดือนคือจำนวนช่องที่กรอกแล้วจาก {totalRows} ช่อง
             </p>
           </div>
 
-          <div className="mt-2 grid grid-cols-6 gap-1.5 sm:grid-cols-12">
+          <div className="mt-3 grid grid-cols-4 gap-1.5 sm:grid-cols-6 lg:grid-cols-12">
             {ALL_MONTHS.map((m) => {
               const done = perMonth[m] >= totalRows;
               const active = m === month;
@@ -721,19 +725,19 @@ export default function EditPage() {
                   key={m}
                   onClick={() => setMonth(m)}
                   aria-pressed={active}
-                  className={`rounded border px-1 py-1.5 text-center transition ${
+                  className={`cursor-pointer rounded-lg border px-1 py-2 text-center transition hover:border-primary ${
                     active
-                      ? 'border-brand bg-brand text-white'
+                      ? 'border-primary bg-primary text-on-primary shadow-hair'
                       : future
-                        ? 'border-line bg-neutral-50 text-ink-soft hover:border-brand'
+                        ? 'border-edge bg-surface-2 text-muted'
                         : done
-                          ? 'border-line bg-brand-soft text-brand-deep hover:border-brand'
-                          : 'border-amber-400 bg-amber-50 text-amber-800 hover:border-brand'
+                          ? 'border-edge bg-primary-soft text-primary-ink'
+                          : 'border-warn-ink/40 bg-warn-soft text-warn-ink'
                   }`}
                 >
                   <span className="block text-xs font-semibold">
                     {MONTHS_SHORT[m]}
-                    {m === monthIndex && <span className="ml-0.5">•</span>}
+                    {m === monthIndex && <span className="ml-0.5" aria-hidden="true">•</span>}
                   </span>
                   <span className="block font-mono text-[11px] tabular-nums">
                     {perMonth[m]}/{totalRows}
@@ -743,12 +747,12 @@ export default function EditPage() {
             })}
           </div>
 
-          <p className="mt-2 text-xs text-ink-soft">
-            <span className="text-brand-deep">•</span> คือเดือนของรอบนี้ ({MONTHS[monthIndex]}) ·{' '}
+          <p className="mt-3 text-xs text-muted">
+            <span className="text-primary">•</span> คือเดือนของรอบนี้ ({MONTHS[monthIndex]}) ·{' '}
             {behind.length === 0 ? (
-              <span className="font-medium text-brand">ตั้งแต่ต้นปีถึงเดือนนี้กรอกครบแล้ว</span>
+              <span className="font-medium text-primary">ตั้งแต่ต้นปีถึงเดือนนี้กรอกครบแล้ว</span>
             ) : (
-              <span className="font-medium text-amber-700">
+              <span className="font-medium text-warn-ink">
                 ยังค้าง {behind.length} เดือน: {behind.map((m) => MONTHS_SHORT[m]).join(' ')}
               </span>
             )}
@@ -756,16 +760,14 @@ export default function EditPage() {
         </section>
 
         {/* ---------- แถบเครื่องมือติดบนสุด ---------- */}
-        <div className="sticky top-12 z-30 mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-line bg-paper px-3 py-2 shadow-sm">
-          <div className="flex overflow-hidden rounded border border-line">
+        <div className="sticky top-12 z-30 mt-4 flex flex-wrap items-center gap-3 rounded-xl2 border border-edge bg-surface px-3 py-2 shadow-hair">
+          <div className="seg">
             {(['month', 'year'] as const).map((v) => (
               <button
                 key={v}
                 onClick={() => setMode(v)}
                 aria-pressed={mode === v}
-                className={`px-3 py-1.5 text-sm ${
-                  mode === v ? 'bg-brand font-semibold text-white' : 'text-ink-soft hover:bg-brand-soft'
-                }`}
+                className="seg-item"
               >
                 {v === 'month' ? `เดือนเดียว (${MONTHS[month]})` : 'ทั้งปี 12 เดือน'}
               </button>
@@ -776,9 +778,16 @@ export default function EditPage() {
             {MONTHS[month]}: กรอกแล้ว <b className="tabular-nums">{filledThis}</b>/{totalRows}
           </span>
 
-          <div className="h-2 w-24 overflow-hidden rounded bg-neutral-200">
+          <div
+            className="h-1.5 w-24 overflow-hidden rounded-full bg-surface-3"
+            role="progressbar"
+            aria-valuenow={Math.round((filledThis / Math.max(1, totalRows)) * 100)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`${MONTHS[month]} กรอกแล้ว ${filledThis} จาก ${totalRows} ช่อง`}
+          >
             <div
-              className="h-full bg-brand transition-all"
+              className="h-full rounded-full bg-primary transition-all"
               style={{ width: `${Math.round((filledThis / Math.max(1, totalRows)) * 100)}%` }}
             />
           </div>
@@ -791,7 +800,7 @@ export default function EditPage() {
                   : Object.fromEntries(view.map((s) => [s.key, true])),
               )
             }
-            className="rounded border border-line px-3 py-1.5 text-sm text-ink-soft hover:bg-neutral-50"
+            className="btn btn-outline btn-sm"
           >
             {Object.values(collapsed).some(Boolean) ? 'กางทั้งหมด' : 'ย่อทั้งหมด'}
           </button>
@@ -799,20 +808,20 @@ export default function EditPage() {
           <button
             onClick={() => commitRef.current?.scrollIntoView({ behavior: 'smooth' })}
             disabled={changedCount === 0}
-            className="ml-auto rounded bg-brand px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
+            className="btn btn-primary ml-auto"
           >
             แก้ไว้ {changedCount} รายการ · ไปที่ปุ่มส่ง
           </button>
         </div>
 
-        <p className="mt-3 text-xs text-ink-soft">
+        <p className="mt-3 text-xs leading-relaxed text-muted">
           ช่องว่าง = ยังไม่กรอก · พิมพ์ <span className="font-mono">-</span> = ไม่มีรายการเดือนนั้นจริง ๆ
           (สไลด์จะขึ้น <span className="font-mono">-</span>) · <b>Enter</b> หรือ <b>ลูกศรขึ้น-ลง</b>{' '}
           ย้ายไปแถวถัดไป · <b>ลูกศรซ้าย-ขวา</b> ย้ายข้ามเดือน · <b>Esc</b> คืนค่าเดิมของช่องนั้น
         </p>
 
         {!token && (
-          <p className="mt-4 rounded bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+          <p className="note note-warn mt-4">
             <b>ยังไม่ได้ใส่โทเคน</b> — ค่าที่เห็นเป็นของตอน build ล่าสุด
             ตัวเตือนตอนกำลังลบตัวเลขเดิมจึงอาจไม่ครบ
             <br />
@@ -821,11 +830,11 @@ export default function EditPage() {
         )}
 
         {liveNote && (
-          <p className="mt-4 rounded bg-amber-50 px-4 py-2.5 text-sm text-amber-800">{liveNote}</p>
+          <p className="note note-warn mt-4" role="status">{liveNote}</p>
         )}
 
         {live && (
-          <p className="mt-4 rounded bg-brand-soft px-4 py-2.5 text-sm text-ink-soft">
+          <p className="note note-brand mt-4" role="status">
             ค่าที่เห็นเป็น<b>ของล่าสุดในรีโป</b>แล้ว ไม่ต้องรอเว็บ build ใหม่
           </p>
         )}
@@ -838,55 +847,55 @@ export default function EditPage() {
               <button
                 onClick={() => setCollapsed((p) => ({ ...p, [s.key]: !p[s.key] }))}
                 aria-expanded={!shut}
-                className="flex w-full items-center gap-2 border-b border-line pb-1.5 text-left"
+                className="flex w-full cursor-pointer items-center gap-2 rounded-lg border-b border-edge px-1 py-2 text-left transition hover:bg-surface-2"
               >
-                <span className="w-4 text-ink-soft">{shut ? '▸' : '▾'}</span>
-                <span className="font-mono text-brand">{s.number}</span>
-                <span className="text-lg font-semibold">{s.title}</span>
+                <span className="text-muted">
+                  {shut ? <IconRight className="h-4 w-4" /> : <IconDown className="h-4 w-4" />}
+                </span>
+                <span className="font-mono text-primary tabular-nums">{s.number}</span>
+                <span className="text-base font-semibold sm:text-lg">{s.title}</span>
               </button>
 
               {!shut &&
                 s.blocks.map((b) => (
                   <div key={b.blockId} className="mt-4">
-                    <h3 className="text-sm font-medium text-ink-soft">{b.title}</h3>
+                    <h3 className="text-sm font-medium text-muted">{b.title}</h3>
 
                     {mode === 'year' ? (
                       /* ---- ตารางทั้งปี: แถว × 12 เดือน ---- */
-                      <div className="mt-2 overflow-x-auto">
+                      <div className="card mt-2 overflow-x-auto p-1">
                         <table className="w-full min-w-[62rem] border-collapse">
                           <thead>
-                            <tr className="text-xs text-ink-soft">
-                              <th className="sticky left-0 z-10 w-56 bg-paper px-2 py-1 text-left font-medium">
+                            <tr className="text-xs text-muted">
+                              <th className="sticky left-0 z-10 w-56 bg-surface px-2 py-1.5 text-left font-medium">
                                 รายการ
                               </th>
                               {ALL_MONTHS.map((m) => (
                                 <th
                                   key={m}
-                                  className={`px-1 py-1 text-center font-medium ${
-                                    m === month ? 'rounded-t bg-brand-soft text-brand-deep' : ''
+                                  className={`px-1 py-1.5 text-center font-medium ${
+                                    m === month ? 'rounded-t-md bg-primary-soft text-primary-ink' : ''
                                   }`}
                                 >
                                   {MONTHS_SHORT[m]}
                                 </th>
                               ))}
-                              <th className="w-16 px-2 py-1 text-left font-medium">หน่วย</th>
+                              <th className="w-16 px-2 py-1.5 text-left font-medium">หน่วย</th>
                             </tr>
                           </thead>
                           <tbody>
                             {b.rows.map((r) => (
-                              <tr key={r.rowKey} className="border-t border-line/60">
+                              <tr key={r.rowKey} className="border-t border-edge/70 even:bg-surface-2/40">
                                 <th
                                   scope="row"
-                                  className="sticky left-0 z-10 bg-paper px-2 py-1 text-left text-sm font-normal"
+                                  className="sticky left-0 z-10 bg-surface px-2 py-1 text-left text-sm font-normal"
                                 >
                                   {r.label}
                                   {r.isNew && (
-                                    <span className="ml-1.5 rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-ink">
-                                      ใหม่
-                                    </span>
+                                    <span className="chip chip-warn ml-1.5 text-[10px]">ใหม่</span>
                                   )}
                                   {r.note && (
-                                    <span className="ml-1 text-xs text-accent" title={r.note}>
+                                    <span className="ml-1 text-xs text-warn-ink" title={r.note}>
                                       *
                                     </span>
                                   )}
@@ -894,12 +903,12 @@ export default function EditPage() {
                                 {ALL_MONTHS.map((m) => (
                                   <td
                                     key={m}
-                                    className={`px-0.5 py-0.5 ${m === month ? 'bg-brand-soft/60' : ''}`}
+                                    className={`px-0.5 py-0.5 ${m === month ? 'bg-primary-soft' : ''}`}
                                   >
                                     {renderCell(r, m)}
                                   </td>
                                 ))}
-                                <td className="px-2 py-1 text-xs text-ink-soft">{r.unitLabel}</td>
+                                <td className="px-2 py-1 text-xs text-muted">{r.unitLabel}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -907,7 +916,7 @@ export default function EditPage() {
                       </div>
                     ) : (
                       /* ---- เดือนเดียว: รายการเดียวต่อบรรทัด อ่านง่ายกว่าและมีค่าเดือนก่อนให้เทียบ ---- */
-                      <ul className="mt-2 divide-y divide-line">
+                      <ul className="card mt-2 divide-y divide-edge px-3">
                         {b.rows.map((r) => {
                           const k = cellKey(r.blockId, r.rowKey, month);
                           const v = valueOf(r.blockId, r.rowKey, month, r.values[month]);
@@ -916,23 +925,21 @@ export default function EditPage() {
                               ? valueOf(r.blockId, r.rowKey, month - 1, r.values[month - 1])
                               : null;
                           return (
-                            <li key={r.rowKey} className="flex flex-wrap items-center gap-2 py-2">
+                            <li key={r.rowKey} className="flex flex-wrap items-center gap-2 py-2 transition hover:bg-surface-2/60">
                               <span className="min-w-0 max-w-[28rem] flex-1 text-sm">
                                 {r.label}
                                 {r.isNew && (
-                                  <span className="ml-1.5 rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-ink">
-                                    ใหม่
-                                  </span>
+                                  <span className="chip chip-warn ml-1.5 text-[10px]">ใหม่</span>
                                 )}
                                 {r.note && (
-                                  <span className="ml-1 text-xs text-accent" title={r.note}>
+                                  <span className="ml-1 text-xs text-warn-ink" title={r.note}>
                                     *
                                   </span>
                                 )}
                               </span>
 
                               {month > 0 && (
-                                <span className="w-28 shrink-0 text-right font-mono text-xs text-ink-soft">
+                                <span className="w-28 shrink-0 text-right font-mono text-xs text-muted">
                                   {MONTHS_SHORT[month - 1]} {formatCell(prev, r.unit) || '—'}
                                 </span>
                               )}
@@ -941,9 +948,7 @@ export default function EditPage() {
                                 {renderCell(r, month)}
                               </span>
 
-                              <span className="w-16 shrink-0 text-xs text-ink-soft">
-                                {r.unitLabel}
-                              </span>
+                              <span className="w-16 shrink-0 text-xs text-muted">{r.unitLabel}</span>
 
                               <button
                                 onClick={() => {
@@ -951,10 +956,9 @@ export default function EditPage() {
                                   setCell(r.blockId, r.rowKey, month, none ? 'none' : null);
                                   setText((p) => ({ ...p, [k]: none ? '-' : '' }));
                                 }}
-                                className={`shrink-0 rounded border px-2 py-1 text-xs ${
-                                  v === 'none'
-                                    ? 'border-brand bg-brand text-white'
-                                    : 'border-line text-ink-soft hover:bg-neutral-50'
+                                aria-pressed={v === 'none'}
+                                className={`btn btn-sm ${
+                                  v === 'none' ? 'btn-primary' : 'btn-outline'
                                 }`}
                               >
                                 ไม่มีรายการ
@@ -964,9 +968,10 @@ export default function EditPage() {
                               {r.isNew && (
                                 <button
                                   onClick={() => removeRow(r.blockId, r.rowKey)}
-                                  className="shrink-0 rounded border border-line px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                                  className="btn btn-danger btn-sm"
                                   aria-label={`ลบ ${r.label}`}
                                 >
+                                  <IconTrash className="h-3.5 w-3.5" />
                                   ลบ
                                 </button>
                               )}
@@ -991,8 +996,8 @@ export default function EditPage() {
         {/* ---------- ข้อความสรุป: บล็อก `text` ---------- */}
         {textView.length > 0 && (
           <section className="mt-10">
-            <h2 className="border-b border-line pb-1.5 text-lg font-semibold">ข้อความสรุป</h2>
-            <p className="mt-2 text-sm text-ink-soft">
+            <h2 className="border-b border-edge pb-1.5 text-lg font-semibold">ข้อความสรุป</h2>
+            <p className="mt-2 text-sm leading-relaxed text-muted">
               ต่างจากตาราง — ข้อความมีชุดเดียว ไม่ได้แยกตามเดือน{' '}
               <b>พิมพ์ที่นี่คือพิมพ์ทับของเดือนก่อน</b>
               <br />
@@ -1007,30 +1012,33 @@ export default function EditPage() {
               const changed = t.blockId in bodies && value !== t.body;
               return (
                 <div key={t.blockId} className="mt-4">
-                  <h3 className="text-sm font-medium text-ink-soft">
-                    <span className="font-mono text-brand">{t.sectionNumber}</span> {t.title}
+                  <h3 className="text-sm font-medium text-muted">
+                    <span className="font-mono text-primary">{t.sectionNumber}</span> {t.title}
                   </h3>
                   <textarea
                     value={value}
                     onChange={(e) => setBodies((p) => ({ ...p, [t.blockId]: e.target.value }))}
                     rows={7}
                     placeholder="พิมพ์ข้อความที่จะขึ้นบนสไลด์…"
-                    className={`mt-2 w-full rounded border px-3 py-2 text-sm leading-relaxed ${
-                      over || wiping ? 'border-red-500 bg-red-50' : 'border-line'
+                    aria-label={`ข้อความสรุปของ ${t.title}`}
+                    className={`field mt-2 leading-relaxed ${
+                      over || wiping ? 'border-danger-ink bg-danger-soft text-danger-ink' : ''
                     }`}
                   />
                   <div className="mt-1 flex flex-wrap items-center gap-3 text-xs">
-                    <span className={over ? 'font-semibold text-red-600' : 'text-ink-soft'}>
+                    <span className={over ? 'font-semibold text-danger-ink' : 'text-muted'}>
                       {value.length.toLocaleString('en-US')} ตัวอักษร
                     </span>
                     {over && (
-                      <span className="font-medium text-red-600">
+                      <span className="font-medium text-danger-ink" role="alert">
                         ยาวเกินหนึ่งสไลด์ — ย่อตัวอักษรจนเล็กสุดแล้วก็ยังไม่พอ
                         ส่วนที่เกินจะถูกตัดหายทั้งบนจอและใน PDF
                       </span>
                     )}
                     {wiping && (
-                      <span className="font-medium text-red-600">กำลังลบข้อความเดิมทิ้งทั้งหมด</span>
+                      <span className="font-medium text-danger-ink" role="alert">
+                        กำลังลบข้อความเดิมทิ้งทั้งหมด
+                      </span>
                     )}
                     {changed && (
                       <button
@@ -1041,7 +1049,7 @@ export default function EditPage() {
                             return next;
                           })
                         }
-                        className="rounded border border-line px-2 py-0.5 text-ink-soft hover:bg-neutral-50"
+                        className="btn btn-outline btn-sm"
                       >
                         คืนค่าเดิม
                       </button>
@@ -1055,43 +1063,45 @@ export default function EditPage() {
 
         {/* ---------- สรุปสิ่งที่ต้องมองอีกที ---------- */}
         {suspect.length > 0 && (
-          <div className="mt-8 rounded border-2 border-amber-500 bg-amber-50 p-4">
-            <p className="font-semibold text-amber-800">
+          <div className="mt-8 rounded-xl2 border border-warn-ink/40 bg-warn-soft p-4" role="status">
+            <p className="flex items-center gap-2 font-semibold text-warn-ink">
+              <IconAlert className="h-4 w-4" />
               ลองดูอีกที — ตัวเลข {suspect.length} ช่องดูผิดปกติ
             </p>
-            <ul className="mt-2 space-y-1 text-sm text-amber-800">
+            <ul className="mt-2 space-y-1 text-sm text-warn-ink">
               {suspect.map((s) => (
                 <li key={s.key}>
                   {s.label} · {MONTHS_SHORT[s.month]} · {s.why}{' '}
-                  <button onClick={() => focusCell(s.key)} className="underline">
+                  <button onClick={() => focusCell(s.key)} className="cursor-pointer underline underline-offset-2">
                     ไปที่ช่องนั้น
                   </button>
                 </li>
               ))}
             </ul>
-            <p className="mt-2 text-sm text-amber-800">
+            <p className="mt-2 text-sm text-warn-ink">
               ถ้าตัวเลขถูกแล้วก็ส่งได้ตามปกติ — ตัวเตือนนี้ไม่ได้กันการส่ง
             </p>
           </div>
         )}
 
         {erasing.length > 0 && (
-          <div className="mt-4 rounded border-2 border-red-500 bg-red-50 p-4">
-            <p className="font-semibold text-red-700">
+          <div className="mt-4 rounded-xl2 border border-danger-edge bg-danger-soft p-4" role="alert">
+            <p className="flex items-center gap-2 font-semibold text-danger-ink">
+              <IconAlert className="h-4 w-4" />
               ระวัง — กำลังลบตัวเลขเดิมทิ้ง {erasing.length} ช่อง
             </p>
-            <ul className="mt-2 space-y-1 text-sm text-red-700">
+            <ul className="mt-2 space-y-1 text-sm text-danger-ink">
               {erasing.map((e) => (
                 <li key={e.key}>
                   {e.label} · {MONTHS_SHORT[e.month]} · เดิม{' '}
                   <b>{e.was.toLocaleString('en-US')}</b> → ว่าง{' '}
-                  <button onClick={() => revertCell(e.key)} className="underline">
+                  <button onClick={() => revertCell(e.key)} className="cursor-pointer underline underline-offset-2">
                     คืนค่าเดิม
                   </button>
                 </li>
               ))}
             </ul>
-            <p className="mt-2 text-sm text-red-700">
+            <p className="mt-2 text-sm text-danger-ink">
               ถ้าตั้งใจว่าเดือนนั้นไม่มีรายการ ให้พิมพ์ <span className="font-mono">-</span>{' '}
               แทนการปล่อยว่าง
             </p>
