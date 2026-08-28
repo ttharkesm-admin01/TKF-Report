@@ -6,8 +6,9 @@ import { ListTableSlide } from './ListTableSlide';
 import { PhotoGridSlide } from './PhotoGridSlide';
 import { PhotoSetSlide } from './PhotoSetSlide';
 import { ScanSlide } from './ScanSlide';
+import { TextSlide } from './TextSlide';
 import { PendingSlide } from './PendingSlide';
-import { asChart, asList, asMatrix, asPhotoGrid, asPhotoSet, asScan } from '@/lib/matrix';
+import { asChart, asList, asMatrix, asPhotoGrid, asPhotoSet, asScan, asText } from '@/lib/matrix';
 import { meta, type DeckSlide } from '@/lib/deck';
 
 /**
@@ -68,6 +69,8 @@ export function SlideRenderer({ slide }: { slide: DeckSlide }) {
       );
     case 'scan':
       return <ScanSlide section={section} block={asScan(block)} title={block.title} meta={meta} />;
+    case 'text':
+      return <TextSlide section={section} block={asText(block)} title={block.title} meta={meta} />;
     default:
       return <PendingSlide section={section} block={block} meta={meta} />;
   }

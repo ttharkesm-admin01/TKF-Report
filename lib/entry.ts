@@ -127,3 +127,43 @@ export function rowRange(values: Cell[]): { min: number; max: number } | null {
   if (nums.length < 3) return null;
   return { min: Math.min(...nums), max: Math.max(...nums) };
 }
+
+/* ------------------------------------------------------------------ */
+/* บล็อกข้อความ                                                        */
+/* ------------------------------------------------------------------ */
+
+export interface TextEntry {
+  blockId: string;
+  sectionNumber: string;
+  sectionTitle: string;
+  title: string;
+  /** ข้อความที่บันทึกไว้แล้ว */
+  body: string;
+}
+
+/**
+ * รวมบล็อก `text` ทั้งเด็คมาไว้ที่เดียว เหมือนที่ทำกับช่องตัวเลข
+ *
+ * ข้อความไม่ได้แยกตามเดือนเหมือนตาราง — บล็อกหนึ่งมี `body` เดียว
+ * ขึ้นรอบใหม่จึงเป็นการ**พิมพ์ทับของเดือนก่อน** ไม่ใช่เติมคอลัมน์ใหม่
+ * หน้ากรอกต้องบอกให้ชัด ไม่งั้นผู้ใช้นึกว่าของเดือนก่อนยังอยู่
+ */
+export function buildTextEntries(list: DeckSection[]): TextEntry[] {
+  const out: TextEntry[] = [];
+  for (const s of list) {
+    for (const b of s.blocks) {
+      if (b.type !== 'text') continue;
+      out.push({
+        blockId: b.id,
+        sectionNumber: s.number,
+        sectionTitle: s.title,
+        title: b.title,
+        body: typeof b.raw.body === 'string' ? b.raw.body : '',
+      });
+    }
+  }
+  return out;
+}
+
+/** บล็อกข้อความตามภาพนิ่งตอน build — ใช้เป็นค่าตั้งต้นก่อนของสดจะมาถึง */
+export const textEntries: TextEntry[] = buildTextEntries(sections);
