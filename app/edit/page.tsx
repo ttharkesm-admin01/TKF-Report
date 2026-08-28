@@ -379,11 +379,21 @@ export default function EditPage() {
 
   const shownMonths = mode === 'year' ? ALL_MONTHS : [month];
 
+  /**
+   * แถวที่ "มองเห็นจริง" — หัวข้อที่ย่อไว้ไม่มี `<input>` อยู่บนหน้า
+   * ถ้าเอา flatRows ทั้งก้อนมาทำผังนำทาง ลูกศรจะเล็งไปยังช่องที่ไม่มีตัวตน
+   * แล้วโฟกัสค้างอยู่ที่เดิม กลายเป็นทางตันตรงรอยต่อของหัวข้อที่ย่อ
+   */
+  const navRows = useMemo(
+    () => view.filter((s) => !collapsed[s.key]).flatMap((s) => s.blocks.flatMap((b) => b.rows)),
+    [view, collapsed],
+  );
+
   /** ผังช่อง [แถว][คอลัมน์] ตามที่ตาเห็น — ลูกศรเดินบนผังนี้ */
   const grid = useMemo(
-    () => flatRows.map((r) => shownMonths.map((m) => cellKey(r.blockId, r.rowKey, m))),
+    () => navRows.map((r) => shownMonths.map((m) => cellKey(r.blockId, r.rowKey, m))),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [flatRows, mode, month],
+    [navRows, mode, month],
   );
 
   const pos = useMemo(() => {
