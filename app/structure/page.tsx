@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
+import { SiteNav } from '@/components/nav/SiteNav';
 import sectionsConfig from '@/config/sections.json';
 import { readJsonFile } from '@/lib/github';
 import { useToken } from '@/lib/useToken';
@@ -78,9 +78,10 @@ export default function StructurePage() {
 
   if (!cfg) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-10">
-        <Link href="/" className="text-brand hover:underline">← สารบัญ</Link>
-        <h1 className="mt-3 text-2xl font-bold text-brand-deep">แก้โครงสร้างเด็ค</h1>
+      <>
+      <SiteNav />
+      <main className="mx-auto max-w-3xl px-6 py-8">
+        <h1 className="text-2xl font-bold text-brand-deep">แก้โครงสร้างเด็ค</h1>
         <p className="mt-3 rounded bg-amber-50 px-4 py-3 text-sm text-amber-800">
           {status || 'กำลังโหลด…'}
         </p>
@@ -90,13 +91,15 @@ export default function StructurePage() {
         </button>
         <CommitPanel count={0} getFiles={async () => []} message="" disabled onDone={() => {}} />
       </main>
+      </>
     );
   }
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-10">
-      <Link href="/" className="text-brand hover:underline">← สารบัญ</Link>
-      <h1 className="mt-3 text-2xl font-bold text-brand-deep">แก้โครงสร้างเด็ค</h1>
+    <>
+      <SiteNav />
+      <main className="mx-auto max-w-4xl px-6 py-8">
+      <h1 className="text-2xl font-bold text-brand-deep">แก้โครงสร้างเด็ค</h1>
       <p className="mt-2 text-sm text-ink-soft">
         เพิ่ม ลบ เปลี่ยนชื่อ และสลับลำดับตารางได้จากหน้านี้ · ตารางรายการกำหนดคอลัมน์และแถวได้ด้วย
         <br />
@@ -221,6 +224,7 @@ export default function StructurePage() {
         disabled={!dirty}
         onDone={() => void load()}
       />
-    </main>
+      </main>
+    </>
   );
 }

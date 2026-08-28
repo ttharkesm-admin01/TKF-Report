@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import { SiteNav } from '@/components/nav/SiteNav';
 import { allPhotosOf, expectedFolder } from '@/lib/photos';
 import { photoBlocks } from '@/lib/photoBlocks';
 import { humanSize, type Prepared } from '@/lib/resize';
@@ -207,11 +207,10 @@ export default function ArrangePage() {
   const savedBytes = pending.reduce((n, i) => n + i.pending!.originalSize - i.pending!.blob.size, 0);
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-10">
-      <Link href="/" className="text-brand hover:underline">
-        ← สารบัญ
-      </Link>
-      <h1 className="mt-3 text-2xl font-bold text-brand-deep">จัดรูป</h1>
+    <>
+      <SiteNav />
+      <main className="mx-auto max-w-6xl px-6 py-8">
+      <h1 className="text-2xl font-bold text-brand-deep">ลงรูป</h1>
       <p className="mt-2 text-sm text-ink-soft">
         ลากรูปใส่ จัดลำดับ ซ่อนรูปที่ไม่เอา ใส่คำบรรยาย แล้วกดส่งเข้าระบบ
       </p>
@@ -370,6 +369,7 @@ export default function ArrangePage() {
           />
         </>
       )}
-    </main>
+      </main>
+    </>
   );
 }
