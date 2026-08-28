@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { SiteNav } from '@/components/nav/SiteNav';
 import { TitleSlide } from '@/components/slide/TitleSlide';
 import { SlideRenderer } from '@/components/slide/SlideRenderer';
 import { meta, slides } from '@/lib/deck';
@@ -9,11 +9,10 @@ import { meta, slides } from '@/lib/deck';
  */
 export default function DeckPage() {
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 print:max-w-none print:p-0">
+    <>
+      <SiteNav />
+      <main className="mx-auto max-w-6xl px-4 py-8 print:max-w-none print:p-0">
       <div className="no-print mb-6 flex items-center justify-between">
-        <Link href="/" className="text-brand hover:underline">
-          ← สารบัญ
-        </Link>
         <p className="text-sm text-ink-soft">
           {slides.length + 1} หน้า · พิมพ์ด้วย Ctrl+P → แนวนอน → เปิด &ldquo;กราฟิกพื้นหลัง&rdquo;
         </p>
@@ -25,6 +24,7 @@ export default function DeckPage() {
           <SlideRenderer key={s.page} slide={s} />
         ))}
       </div>
-    </main>
+      </main>
+    </>
   );
 }
