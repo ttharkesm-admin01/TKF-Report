@@ -1,10 +1,17 @@
 @import 'tailwindcss';
 
-/* ------------------------------------------------------------------ */
-/* โทนสี — ธีมเดียวทั้งเด็ค แก้ที่นี่ที่เดียว                             */
-/* ของเดิมเป็นธีมเริ่มต้น Office แล้วไล่ทาเขียวทีละกล่อง (PROJECT.md ข้อ 2.4) */
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
+/* ระบบสี — แก้ที่นี่ที่เดียวทั้งเว็บ                                    */
+/*                                                                    */
+/* แบ่งเป็นสองชุด อย่าสลับกันใช้:                                       */
+/*  1. ชุด "เด็ค"  (brand / ink / paper / line / accent)               */
+/*     ตายตัวเป็นโทนสว่างเสมอ เพราะสไลด์คือหน้ากระดาษที่ต้องพิมพ์ออก PDF */
+/*  2. ชุด "หน้าจอทำงาน" (canvas / surface / fg / edge …)              */
+/*     เปลี่ยนตามโหมดสว่าง-มืด ใช้กับเมนู ปุ่ม การ์ด ตารางกรอกข้อมูล      */
+/* ================================================================== */
+
 @theme {
+  /* ---- ชุดเด็ค: ห้ามผูกกับโหมดมืด ---- */
   --color-brand:       #007a3d;
   --color-brand-deep:  #00552a;
   --color-brand-soft:  #e8f4ec;
@@ -13,17 +20,249 @@
   --color-ink-soft:    #5c5c5c;
   --color-line:        #d9d9d9;
   --color-paper:       #ffffff;
+
+  --radius-xl2: 1rem;
 }
 
+/* ---- ชุดหน้าจอทำงาน: ค่าโหมดสว่าง ---- */
 :root {
   color-scheme: light;
+
+  --ui-canvas:       #f6f7f8;
+  --ui-surface:      #ffffff;
+  --ui-surface-2:    #f2f4f5;
+  --ui-surface-3:    #e8ebec;
+  --ui-fg:           #14181a;
+  --ui-muted:        #5c6569;
+  --ui-edge:         #e0e4e6;
+  --ui-edge-strong:  #c4cbcd;
+
+  --ui-primary:      #007a3d;
+  --ui-primary-hover:#006934;
+  --ui-on-primary:   #ffffff;
+  --ui-primary-soft: #e6f3eb;
+  --ui-primary-ink:  #005c2e;
+
+  --ui-warn-soft:    #fdf3e0;
+  --ui-warn-ink:     #8a5a09;
+  --ui-danger-soft:  #fdeceb;
+  --ui-danger-ink:   #b3261e;
+  --ui-danger-edge:  #e9a19c;
+
+  --ui-ring:         color-mix(in srgb, var(--ui-primary) 45%, transparent);
+  --ui-shadow:       0 1px 2px rgb(15 23 26 / 0.05), 0 8px 24px -12px rgb(15 23 26 / 0.18);
+  --ui-shadow-sm:    0 1px 2px rgb(15 23 26 / 0.06);
+}
+
+/* ---- โหมดมืด: ตามเครื่อง เว้นแต่ผู้ใช้เลือกไว้เอง ---- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --ui-canvas:       #101416;
+    --ui-surface:      #181d20;
+    --ui-surface-2:    #1f2528;
+    --ui-surface-3:    #283034;
+    --ui-fg:           #e8edee;
+    --ui-muted:        #9aa5a9;
+    --ui-edge:         #2b3336;
+    --ui-edge-strong:  #3c4649;
+
+    --ui-primary:      #3fbf7b;
+    --ui-primary-hover:#54ce8d;
+    --ui-on-primary:   #062313;
+    --ui-primary-soft: #14322380;
+    --ui-primary-ink:  #7fdcaa;
+
+    --ui-warn-soft:    #3a2c11;
+    --ui-warn-ink:     #f2c168;
+    --ui-danger-soft:  #3a1c1a;
+    --ui-danger-ink:   #f5a49e;
+    --ui-danger-edge:  #6d3430;
+
+    --ui-shadow:       0 1px 2px rgb(0 0 0 / 0.4), 0 12px 28px -14px rgb(0 0 0 / 0.7);
+    --ui-shadow-sm:    0 1px 2px rgb(0 0 0 / 0.35);
+  }
+}
+
+/* ผู้ใช้กดสลับเอง — ชนะค่าของเครื่องเสมอ */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --ui-canvas:       #101416;
+  --ui-surface:      #181d20;
+  --ui-surface-2:    #1f2528;
+  --ui-surface-3:    #283034;
+  --ui-fg:           #e8edee;
+  --ui-muted:        #9aa5a9;
+  --ui-edge:         #2b3336;
+  --ui-edge-strong:  #3c4649;
+
+  --ui-primary:      #3fbf7b;
+  --ui-primary-hover:#54ce8d;
+  --ui-on-primary:   #062313;
+  --ui-primary-soft: #14322380;
+  --ui-primary-ink:  #7fdcaa;
+
+  --ui-warn-soft:    #3a2c11;
+  --ui-warn-ink:     #f2c168;
+  --ui-danger-soft:  #3a1c1a;
+  --ui-danger-ink:   #f5a49e;
+  --ui-danger-edge:  #6d3430;
+
+  --ui-shadow:       0 1px 2px rgb(0 0 0 / 0.4), 0 12px 28px -14px rgb(0 0 0 / 0.7);
+  --ui-shadow-sm:    0 1px 2px rgb(0 0 0 / 0.35);
+}
+
+/* ผูกตัวแปรข้างบนเข้ากับคลาสของ Tailwind — `inline` ทำให้คลาสอ้าง var()
+   ตรง ๆ สลับโหมดแล้วสีเปลี่ยนทันทีโดยไม่ต้อง build ใหม่ */
+@theme inline {
+  --color-canvas:      var(--ui-canvas);
+  --color-surface:     var(--ui-surface);
+  --color-surface-2:   var(--ui-surface-2);
+  --color-surface-3:   var(--ui-surface-3);
+  --color-fg:          var(--ui-fg);
+  --color-muted:       var(--ui-muted);
+  --color-edge:        var(--ui-edge);
+  --color-edge-strong: var(--ui-edge-strong);
+  --color-primary:     var(--ui-primary);
+  --color-on-primary:  var(--ui-on-primary);
+  --color-primary-soft:var(--ui-primary-soft);
+  --color-primary-ink: var(--ui-primary-ink);
+  --color-warn-soft:   var(--ui-warn-soft);
+  --color-warn-ink:    var(--ui-warn-ink);
+  --color-danger-soft: var(--ui-danger-soft);
+  --color-danger-ink:  var(--ui-danger-ink);
+  --color-danger-edge: var(--ui-danger-edge);
+
+  --shadow-card:       var(--ui-shadow);
+  --shadow-hair:       var(--ui-shadow-sm);
 }
 
 body {
-  background: #f2f3f5;
-  color: var(--color-ink);
+  background: var(--ui-canvas);
+  color: var(--ui-fg);
   font-family: var(--font-sarabun), 'Sarabun', 'Noto Sans Thai', 'Segoe UI', sans-serif;
   /* ฟอนต์เดียวทั้งระบบ — แก้ปัญหาฟอนต์ปน 7 แบบ และตระกูล UPC ที่มีเฉพาะ Windows */
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ------------------------------------------------------------------ */
+/* พื้นฐานที่ใช้ทั้งเว็บ                                                 */
+/* ------------------------------------------------------------------ */
+
+/* กรอบโฟกัสเส้นเดียวทั้งระบบ · เห็นชัดทั้งโหมดสว่างและมืด
+   ใช้ :focus-visible เท่านั้น คลิกเมาส์จึงไม่มีกรอบมากวน */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--ui-primary);
+  outline-offset: 2px;
+  border-radius: 0.375rem;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--ui-primary) 25%, transparent);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* คนที่ตั้งเครื่องว่าไม่เอาภาพเคลื่อนไหว ต้องได้ตามนั้นจริง */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* แถบเลื่อนบาง เข้ากับโทนของโหมดที่ใช้อยู่ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ui-edge-strong) transparent;
+}
+
+/* ------------------------------------------------------------------ */
+/* ชิ้นส่วนที่ใช้ซ้ำทั้งเว็บ — เขียนที่นี่ที่เดียว หน้าอื่นเรียกด้วยชื่อคลาส   */
+/* ------------------------------------------------------------------ */
+@layer components {
+  .card {
+    @apply rounded-xl2 border border-edge bg-surface;
+  }
+
+  .card-pad {
+    @apply rounded-xl2 border border-edge bg-surface p-4 sm:p-5;
+  }
+
+  /* ปุ่ม — สูงเท่ากันทุกแบบ วางเรียงกันแล้วขอบบน-ล่างตรงกัน */
+  .btn {
+    @apply inline-flex h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5
+           rounded-lg px-3.5 text-sm font-medium transition
+           disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-lg { @apply h-11 rounded-xl px-5 text-base; }
+  .btn-sm { @apply h-8 rounded-md px-2.5 text-xs; }
+
+  .btn-primary {
+    @apply bg-primary text-on-primary shadow-hair;
+  }
+  .btn-primary:not(:disabled):hover { background: var(--ui-primary-hover); }
+
+  .btn-outline {
+    @apply border border-edge-strong bg-surface text-fg;
+  }
+  .btn-outline:not(:disabled):hover { background: var(--ui-surface-2); }
+
+  .btn-quiet {
+    @apply text-muted;
+  }
+  .btn-quiet:not(:disabled):hover { background: var(--ui-surface-2); color: var(--ui-fg); }
+
+  .btn-danger {
+    @apply border border-edge text-danger-ink;
+  }
+  .btn-danger:not(:disabled):hover { background: var(--ui-danger-soft); border-color: var(--ui-danger-edge); }
+
+  .btn-dashed {
+    @apply border border-dashed border-edge-strong text-muted;
+  }
+  .btn-dashed:hover { @apply border-primary text-primary; }
+
+  /* ช่องกรอก */
+  .field {
+    @apply w-full rounded-lg border border-edge bg-surface px-3 py-2 text-sm text-fg
+           transition placeholder:text-muted disabled:bg-surface-2 disabled:text-muted;
+  }
+  .field:focus { border-color: var(--ui-primary); }
+
+  /* ป้ายเล็ก */
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium;
+  }
+  .chip-neutral { @apply bg-surface-2 text-muted; }
+  .chip-brand   { @apply bg-primary-soft text-primary-ink; }
+  .chip-warn    { @apply bg-warn-soft text-warn-ink; }
+  .chip-danger  { @apply bg-danger-soft text-danger-ink; }
+
+  /* กล่องข้อความแจ้งเตือน */
+  .note {
+    @apply rounded-lg px-4 py-2.5 text-sm;
+  }
+  .note-warn   { @apply bg-warn-soft text-warn-ink; }
+  .note-danger { @apply bg-danger-soft text-danger-ink; }
+  .note-brand  { @apply bg-primary-soft text-primary-ink; }
+
+  /* ปุ่มสลับแบบติดกัน (เดือนเดียว / ทั้งปี) */
+  .seg {
+    @apply inline-flex rounded-lg border border-edge bg-surface-2 p-0.5;
+  }
+  .seg-item {
+    @apply cursor-pointer rounded-md px-3 py-1 text-sm font-medium text-muted transition;
+  }
+  .seg-item[aria-pressed='true'] {
+    @apply bg-surface text-fg shadow-hair;
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -38,11 +277,22 @@ body {
   position: relative;
   overflow: hidden;
   background: var(--color-paper);
+  color: var(--color-ink);
+  /* สไลด์เป็นหน้ากระดาษ — โหมดมืดของหน้าจอทำงานต้องไม่ลามเข้ามา */
+  color-scheme: light;
 }
 
 @media print {
   /* 13.333in x 7.5in = ขนาดสไลด์ PowerPoint จอกว้าง พิมพ์แล้วได้สัดส่วนเดิมเป๊ะ */
   @page { size: 338.67mm 190.5mm; margin: 0; }
+
+  /* พิมพ์ตอนเปิดโหมดมืดอยู่ ต้องได้กระดาษขาวเหมือนกัน */
+  :root, :root[data-theme='dark'] {
+    color-scheme: light;
+    --ui-canvas: #ffffff;
+    --ui-surface: #ffffff;
+    --ui-fg: #1a1a1a;
+  }
 
   body { background: #fff; }
   .no-print { display: none !important; }

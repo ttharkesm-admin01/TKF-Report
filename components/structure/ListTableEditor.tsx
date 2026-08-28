@@ -2,6 +2,7 @@
 
 import type { ListCell, ListColumn } from '@/shared/schema';
 import { freeColumnKey, type RawBlock } from '@/lib/structure';
+import { IconDown, IconLeft, IconPlus, IconRight, IconTrash, IconUp } from '@/components/ui/icons';
 
 type Row = Record<string, ListCell>;
 
@@ -64,11 +65,11 @@ export function ListTableEditor({
     setRows(rows.map((r, k) => (k === i ? { ...r, [key]: v } : r)));
 
   return (
-    <div className="mt-3 rounded border border-line bg-neutral-50 p-3">
+    <div className="mt-3 rounded-xl border border-edge bg-surface-2 p-3">
       {/* ---------- คอลัมน์ ---------- */}
       <p className="text-sm font-medium">คอลัมน์</p>
       {columns.length === 0 && (
-        <p className="mt-1 text-xs text-ink-soft">
+        <p className="mt-1 text-xs text-muted">
           ยังไม่มีคอลัมน์ — ตารางนี้จะขึ้นเป็นช่องว่างบนสไลด์จนกว่าจะเพิ่ม
         </p>
       )}
@@ -80,12 +81,14 @@ export function ListTableEditor({
               value={c.label}
               onChange={(e) => patchCol(i, { label: e.target.value })}
               placeholder="ชื่อคอลัมน์"
-              className="min-w-0 flex-1 rounded border border-line px-2 py-1"
+              aria-label="ชื่อคอลัมน์"
+              className="field h-8 min-w-0 flex-1 py-1"
             />
             <select
               value={c.kind ?? 'text'}
               onChange={(e) => patchCol(i, { kind: e.target.value as ListColumn['kind'] })}
-              className="rounded border border-line bg-white px-1.5 py-1 text-xs"
+              aria-label="ชนิดของคอลัมน์"
+              className="field h-8 w-auto px-1.5 py-1 text-xs"
             >
               {KINDS.map((k) => (
                 <option key={k.value} value={k.value}>
@@ -102,80 +105,135 @@ export function ListTableEditor({
                 patchCol(i, { width: e.target.value ? Number(e.target.value) : undefined })
               }
               placeholder="กว้าง%"
-              className="w-20 rounded border border-line px-1.5 py-1 text-xs"
+              aria-label="ความกว้างคอลัมน์ เป็นเปอร์เซ็นต์"
+              className="field h-8 w-20 px-1.5 py-1 text-xs"
             />
-            <label className="flex items-center gap-1 text-xs text-ink-soft" title="รวมช่องที่ค่าซ้ำกันติดกัน">
+            <label
+              className="flex cursor-pointer items-center gap-1 text-xs text-muted"
+              title="รวมช่องที่ค่าซ้ำกันติดกัน"
+            >
               <input
                 type="checkbox"
+                className="h-3.5 w-3.5 accent-[var(--ui-primary)]"
                 checked={Boolean(c.merge)}
                 onChange={(e) => patchCol(i, { merge: e.target.checked || undefined })}
               />
               รวมช่อง
             </label>
-            <button onClick={() => moveColumn(i, -1)} disabled={i === 0}
-              className="rounded border border-line px-1.5 disabled:opacity-30">◀</button>
-            <button onClick={() => moveColumn(i, 1)} disabled={i === columns.length - 1}
-              className="rounded border border-line px-1.5 disabled:opacity-30">▶</button>
-            <button onClick={() => removeColumn(i)}
-              className="rounded border border-line px-1.5 text-xs text-red-600 hover:bg-red-50">ลบ</button>
+            <button
+              onClick={() => moveColumn(i, -1)}
+              disabled={i === 0}
+              aria-label={`เลื่อนคอลัมน์ ${c.label} ไปทางซ้าย`}
+              className="btn btn-outline btn-sm w-8 px-0"
+            >
+              <IconLeft className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => moveColumn(i, 1)}
+              disabled={i === columns.length - 1}
+              aria-label={`เลื่อนคอลัมน์ ${c.label} ไปทางขวา`}
+              className="btn btn-outline btn-sm w-8 px-0"
+            >
+              <IconRight className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => removeColumn(i)}
+              aria-label={`ลบคอลัมน์ ${c.label}`}
+              className="btn btn-danger btn-sm"
+            >
+              <IconTrash className="h-3.5 w-3.5" />
+              ลบ
+            </button>
           </li>
         ))}
       </ul>
 
-      <button onClick={addColumn}
-        className="mt-2 rounded border border-dashed border-line px-2.5 py-1 text-xs text-ink-soft hover:border-brand hover:text-brand">
-        + เพิ่มคอลัมน์
+      <button onClick={addColumn} className="btn btn-dashed btn-sm mt-2">
+        <IconPlus className="h-3.5 w-3.5" />
+        เพิ่มคอลัมน์
       </button>
 
       {/* ---------- แถว ---------- */}
       {columns.length > 0 && (
         <>
           <p className="mt-4 text-sm font-medium">แถว ({rows.length})</p>
-          <div className="mt-2 overflow-x-auto">
+          <div className="mt-2 overflow-x-auto rounded-lg border border-edge">
             <table className="w-full min-w-[560px] border-collapse text-xs">
               <thead>
-                <tr className="bg-brand text-white">
-                  <th className="border border-line px-1 py-1 w-16">ลำดับ</th>
+                <tr className="bg-primary text-on-primary">
+                  <th className="w-20 border border-edge px-1 py-1.5">ลำดับ</th>
                   {columns.map((c) => (
-                    <th key={c.key} className="border border-line px-1.5 py-1 text-left">{c.label}</th>
+                    <th key={c.key} className="border border-edge px-1.5 py-1.5 text-left">
+                      {c.label}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => (
-                  <tr key={i}>
-                    <td className="border border-line px-1 py-1 whitespace-nowrap">
-                      <button onClick={() => moveRow(i, -1)} disabled={i === 0}
-                        className="px-1 disabled:opacity-30">▲</button>
-                      <button onClick={() => moveRow(i, 1)} disabled={i === rows.length - 1}
-                        className="px-1 disabled:opacity-30">▼</button>
-                      <button onClick={() => removeRow(i)}
-                        className="px-1 text-red-600">✕</button>
+                  <tr key={i} className="even:bg-surface-2/60">
+                    <td className="border border-edge px-1 py-1 whitespace-nowrap">
+                      <button
+                        onClick={() => moveRow(i, -1)}
+                        disabled={i === 0}
+                        aria-label={`เลื่อนแถวที่ ${i + 1} ขึ้น`}
+                        className="cursor-pointer px-1 align-middle disabled:opacity-30"
+                      >
+                        <IconUp className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => moveRow(i, 1)}
+                        disabled={i === rows.length - 1}
+                        aria-label={`เลื่อนแถวที่ ${i + 1} ลง`}
+                        className="cursor-pointer px-1 align-middle disabled:opacity-30"
+                      >
+                        <IconDown className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => removeRow(i)}
+                        aria-label={`ลบแถวที่ ${i + 1}`}
+                        className="cursor-pointer px-1 align-middle text-danger-ink"
+                      >
+                        <IconTrash className="h-3.5 w-3.5" />
+                      </button>
                     </td>
                     {columns.map((c) => {
                       const v = r[c.key] ?? null;
                       if (c.kind === 'months') {
                         const range = Array.isArray(v) ? v : [1, 12];
                         return (
-                          <td key={c.key} className="border border-line px-1.5 py-1">
+                          <td key={c.key} className="border border-edge px-1.5 py-1">
                             <span className="flex items-center gap-1">
-                              <input type="number" min={1} max={12} value={range[0]}
+                              <input
+                                type="number"
+                                min={1}
+                                max={12}
+                                value={range[0]}
+                                aria-label={`${c.label} เดือนเริ่ม`}
                                 onChange={(e) => setCell(i, c.key, [Number(e.target.value), range[1]])}
-                                className="w-12 rounded border border-line px-1" />
-                              <span>–</span>
-                              <input type="number" min={1} max={12} value={range[1]}
+                                className="field w-14 px-1 py-0.5 text-xs"
+                              />
+                              <span aria-hidden="true">–</span>
+                              <input
+                                type="number"
+                                min={1}
+                                max={12}
+                                value={range[1]}
+                                aria-label={`${c.label} เดือนจบ`}
                                 onChange={(e) => setCell(i, c.key, [range[0], Number(e.target.value)])}
-                                className="w-12 rounded border border-line px-1" />
+                                className="field w-14 px-1 py-0.5 text-xs"
+                              />
                             </span>
                           </td>
                         );
                       }
                       return (
-                        <td key={c.key} className="border border-line px-1.5 py-1">
+                        <td key={c.key} className="border border-edge px-1.5 py-1">
                           <input
                             value={v === null ? '' : String(v)}
+                            aria-label={`${c.label} แถวที่ ${i + 1}`}
                             onChange={(e) => setCell(i, c.key, e.target.value || null)}
-                            className="w-full min-w-24 rounded border border-line px-1 py-0.5"
+                            className="field w-full min-w-24 px-1 py-0.5 text-xs"
                           />
                         </td>
                       );
@@ -186,12 +244,12 @@ export function ListTableEditor({
             </table>
           </div>
 
-          <button onClick={addRow}
-            className="mt-2 rounded border border-dashed border-line px-2.5 py-1 text-xs text-ink-soft hover:border-brand hover:text-brand">
-            + เพิ่มแถว
+          <button onClick={addRow} className="btn btn-dashed btn-sm mt-2">
+            <IconPlus className="h-3.5 w-3.5" />
+            เพิ่มแถว
           </button>
 
-          <label className="mt-3 flex items-center gap-2 text-xs text-ink-soft">
+          <label className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted">
             แถวต่อหนึ่งหน้า
             <input
               type="number" min={1} max={40}
@@ -200,7 +258,7 @@ export function ListTableEditor({
                 onChange({ rowsPerSlide: e.target.value ? Number(e.target.value) : undefined })
               }
               placeholder="9"
-              className="w-16 rounded border border-line px-1.5 py-1"
+              className="field h-8 w-16 px-1.5 py-1 text-xs"
             />
             <span>เกินกว่านี้ขึ้นหน้าใหม่ · ว่างไว้ = 9</span>
           </label>

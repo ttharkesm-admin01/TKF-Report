@@ -2,6 +2,7 @@ import { SiteNav } from '@/components/nav/SiteNav';
 import { TitleSlide } from '@/components/slide/TitleSlide';
 import { SlideRenderer } from '@/components/slide/SlideRenderer';
 import { meta, slides } from '@/lib/deck';
+import { PrintButton } from '@/components/deck/PrintButton';
 
 /**
  * ทั้งเล่มเรียงต่อกัน — หน้านี้คือทางออก PDF
@@ -11,13 +12,16 @@ export default function DeckPage() {
   return (
     <>
       <SiteNav />
-      <main className="mx-auto max-w-6xl px-4 py-8 print:max-w-none print:p-0">
-      <div className="no-print mb-6 flex items-center justify-between">
-        <p className="text-sm text-ink-soft">
-          {slides.length + 1} หน้า · พิมพ์ด้วย Ctrl+P → แนวนอน → เปิด &ldquo;กราฟิกพื้นหลัง&rdquo;
+      <main id="main" className="mx-auto max-w-6xl px-4 py-8 print:max-w-none print:p-0">
+      <div className="no-print card mb-6 flex flex-wrap items-center justify-between gap-3 p-3">
+        <p className="text-sm text-muted">
+          <b className="text-fg tabular-nums">{slides.length + 1}</b> หน้า · พิมพ์แล้วเลือก
+          แนวนอน → เปิด &ldquo;กราฟิกพื้นหลัง&rdquo;
         </p>
+        <PrintButton />
       </div>
 
+      {/* เงาใต้สไลด์มีเฉพาะบนจอ · @media print ถอดให้เองใน globals.css */}
       <div className="flex flex-col gap-8 print:gap-0">
         <TitleSlide meta={meta} />
         {slides.map((s) => (

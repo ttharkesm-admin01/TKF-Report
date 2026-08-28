@@ -19,9 +19,18 @@ export const metadata: Metadata = {
   description: `${meta.site} · ${meta.company}`,
 };
 
+/**
+ * ทาโหมดสีตั้งแต่ก่อนวาดหน้า — ถ้ารอ React จะเห็นจอขาวแวบหนึ่งก่อนเปลี่ยนเป็นมืด
+ * ไม่ได้เลือกไว้ = ปล่อยตามค่าของเครื่อง (prefers-color-scheme)
+ */
+const THEME_SCRIPT = `try{var t=localStorage.getItem('tkf-theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)}catch(e){}`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="th" className={sarabun.variable}>
+    <html lang="th" className={sarabun.variable} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body>{children}</body>
     </html>
   );

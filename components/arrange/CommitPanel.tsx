@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { commitFiles, repo, tokenPageUrl, type CommitFile, type CommitProgress } from '@/lib/github';
 import { setToken, useToken } from '@/lib/useToken';
+import { IconCheck, IconUpload } from '@/components/ui/icons';
 
 /**
  * ส่งรูปเข้ารีโป
@@ -77,9 +78,9 @@ export function CommitPanel({
   const pct = progress ? Math.round((progress.done / Math.max(1, progress.total)) * 100) : 0;
 
   return (
-    <section className="mt-8 rounded-lg border border-line p-5">
+    <section className="card mt-8 p-5">
       <h2 className="text-lg font-semibold">ส่งเข้าระบบ</h2>
-      <p className="mt-1 text-sm text-ink-soft">
+      <p className="mt-1 text-sm leading-relaxed text-muted">
         ส่งเข้ารีโป <span className="font-mono">{repo.owner}/{repo.repo}</span> บรานช์{' '}
         <span className="font-mono">{repo.branch}</span> แล้วเว็บจะ build ใหม่เองใน ~1 นาที
       </p>
@@ -92,13 +93,15 @@ export function CommitPanel({
           onChange={(e) => setDraft(e.target.value)}
           onBlur={publish}
           placeholder="github_pat_..."
-          className="mt-1 block w-full rounded border border-line px-3 py-2 font-mono text-sm"
+          autoComplete="off"
+          className="field mt-1.5 font-mono"
         />
       </label>
 
-      <label className="mt-2 flex items-center gap-2 text-sm text-ink-soft">
+      <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-muted">
         <input
           type="checkbox"
+          className="h-4 w-4 accent-[var(--ui-primary)]"
           checked={remember}
           onChange={(e) => {
             setRemember(e.target.checked);
@@ -108,9 +111,14 @@ export function CommitPanel({
         จำโทเคนไว้ในเบราว์เซอร์เครื่องนี้
       </label>
 
-      <p className="mt-2 text-xs text-ink-soft">
+      <p className="mt-2 text-xs leading-relaxed text-muted">
         ยังไม่มีโทเคน?{' '}
-        <a href={tokenPageUrl} target="_blank" rel="noreferrer" className="text-brand underline">
+        <a
+          href={tokenPageUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-primary underline underline-offset-2"
+        >
           สร้างที่นี่
         </a>{' '}
         — เลือก Repository access = เฉพาะ <span className="font-mono">{repo.repo}</span> ·
@@ -121,32 +129,47 @@ export function CommitPanel({
         <button
           onClick={() => void send()}
           disabled={running || disabled || !draft.trim() || count === 0}
-          className="rounded bg-brand px-5 py-2.5 font-semibold text-white hover:bg-brand-deep disabled:opacity-40"
+          className="btn btn-primary btn-lg font-semibold"
         >
+          <IconUpload className="h-4 w-4" />
           {running ? 'กำลังส่ง…' : `ส่ง ${count} ไฟล์`}
         </button>
 
         {progress && (
-          <span className="text-sm text-ink-soft">
+          <span className="text-sm text-muted" role="status" aria-live="polite">
             {progress.label} · {pct}%
           </span>
         )}
       </div>
 
       {progress && (
-        <div className="mt-3 h-2 overflow-hidden rounded bg-neutral-200">
-          <div className="h-full bg-brand transition-all" style={{ width: `${pct}%` }} />
+        <div
+          className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-3"
+          role="progressbar"
+          aria-valuenow={pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
+          <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
         </div>
       )}
 
       {error && (
-        <p className="mt-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        <p className="note note-danger mt-3" role="alert">
+          {error}
+        </p>
       )}
 
       {result && (
-        <p className="mt-3 rounded bg-brand-soft px-3 py-2 text-sm">
+        <p className="note note-brand mt-3 flex flex-wrap items-center gap-1" role="status">
+          <IconCheck className="h-4 w-4" />
           ส่งเรียบร้อย —{' '}
-          <a href={result.url} target="_blank" rel="noreferrer" className="text-brand underline">
+          <a
+            href={result.url}
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium underline underline-offset-2"
+          >
             ดู commit
           </a>{' '}
           · เว็บจะอัปเดตเองใน ~1 นาที

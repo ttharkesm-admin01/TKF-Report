@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { TitleSlide } from '@/components/slide/TitleSlide';
 import { SlideRenderer } from '@/components/slide/SlideRenderer';
 import { meta, slides } from '@/lib/deck';
+import { IconExpand, IconHome, IconLeft, IconRight } from '@/components/ui/icons';
 
 /** โหมดนำเสนอ — ทีละหน้า เลื่อนด้วยลูกศร / Space / PageUp-PageDown */
 export default function PresentPage() {
@@ -53,8 +54,27 @@ export default function PresentPage() {
 
   const current = index === 0 ? null : slides[index - 1];
 
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void document.documentElement.requestFullscreen();
+  };
+
   return (
-    <main className="flex min-h-screen flex-col bg-neutral-900">
+    <main className="flex min-h-screen flex-col bg-neutral-950">
+      {/* หลอดบอกว่าอยู่หน้าที่เท่าไรของทั้งเล่ม — เห็นจากท้ายห้องประชุมได้ */}
+      <div
+        className="h-1 bg-white/10"
+        role="progressbar"
+        aria-valuenow={index + 1}
+        aria-valuemin={1}
+        aria-valuemax={total}
+      >
+        <div
+          className="h-full bg-brand transition-all"
+          style={{ width: `${((index + 1) / total) * 100}%` }}
+        />
+      </div>
+
       <div className="flex flex-1 items-center justify-center p-4">
         {/* กว้างสุดเท่าที่ยังเห็นเต็ม 16:9 ในจอ */}
         <div className="w-full max-w-[min(100vw-2rem,calc((100vh-6rem)*16/9))]">
@@ -62,28 +82,46 @@ export default function PresentPage() {
         </div>
       </div>
 
-      <nav className="flex items-center justify-between gap-4 bg-neutral-800 px-5 py-3 text-sm text-neutral-300">
-        <Link href="/" className="hover:text-white">
-          ← สารบัญ
+      <nav className="flex items-center justify-between gap-3 border-t border-white/10 bg-neutral-900 px-3 py-2.5 text-sm text-neutral-300 sm:px-5">
+        <Link
+          href="/"
+          className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-2 transition hover:bg-white/10 hover:text-white"
+        >
+          <IconHome className="h-4 w-4" />
+          <span className="hidden sm:inline">สารบัญ</span>
         </Link>
 
-        <span className="truncate">
+        <span className="min-w-0 flex-1 truncate text-center">
           {current ? `${current.section.number} ${current.section.title}` : 'ปกเล่ม'}
         </span>
 
-        <span className="flex items-center gap-3">
-          <button onClick={() => go(-1)} disabled={index === 0} className="px-2 disabled:opacity-30">
-            ◀
+        <span className="flex shrink-0 items-center gap-1">
+          <button
+            onClick={toggleFullscreen}
+            aria-label="เต็มจอ (กด f ก็ได้)"
+            title="เต็มจอ (f)"
+            className="grid h-9 w-9 cursor-pointer place-items-center rounded-lg transition hover:bg-white/10 hover:text-white"
+          >
+            <IconExpand className="h-4 w-4" />
           </button>
-          <span className="tabular-nums">
+          <button
+            onClick={() => go(-1)}
+            disabled={index === 0}
+            aria-label="หน้าก่อน"
+            className="grid h-9 w-9 cursor-pointer place-items-center rounded-lg transition hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent"
+          >
+            <IconLeft className="h-4 w-4" />
+          </button>
+          <span className="px-1 tabular-nums" aria-live="polite">
             {index + 1} / {total}
           </span>
           <button
             onClick={() => go(1)}
             disabled={index === total - 1}
-            className="px-2 disabled:opacity-30"
+            aria-label="หน้าถัดไป"
+            className="grid h-9 w-9 cursor-pointer place-items-center rounded-lg transition hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent"
           >
-            ▶
+            <IconRight className="h-4 w-4" />
           </button>
         </span>
       </nav>
