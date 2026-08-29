@@ -110,7 +110,11 @@ export function PhotoDrop({
     }
 
     setBusy('');
-    if (failed.length) setError(`ย่อไม่สำเร็จ ${failed.length} ไฟล์: ${failed.slice(0, 3).join(', ')}`);
+    // ต่อท้ายข้อความเดิม ไม่ใช่เขียนทับ — ที่ค้างอยู่คือ "ข้ามไฟล์ที่ไม่ใช่รูป" ของการลากรอบนี้
+    if (failed.length) {
+      const msg = `ย่อไม่สำเร็จ ${failed.length} ไฟล์: ${failed.slice(0, 3).join(', ')}`;
+      setError((prev) => (prev ? `${prev} · ${msg}` : msg));
+    }
     if (out.length) onAdd(out);
     if (fileRef.current) fileRef.current.value = '';
     if (folderRef.current) folderRef.current.value = '';

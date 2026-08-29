@@ -171,7 +171,11 @@ export default function ArrangePage() {
     setItems(blockId, (prev) => prev.map((it, k) => (k === i ? { ...it, ...p } : it)));
 
   /** รูปที่ย่อเสร็จแล้วจาก PhotoDrop — ลงได้หลายบล็อกในครั้งเดียว */
-  const addGroups = (groups: AddedGroup[]) =>
+  const addGroups = (groups: AddedGroup[]) => {
+    // ลากโฟลเดอร์เข้ามาแล้วรูปไปลงหัวข้ออื่นหมด ถ้ายังค้างอยู่หัวข้อเดิมที่ว่างเปล่า
+    // หน้าจะขึ้นว่า "ยังไม่มีรูปในหัวข้อนี้" ทั้งที่เพิ่งลงไปเป็นร้อยใบ — เด้งไปหัวข้อแรกที่ได้รูป
+    if (groups.length && !groups.some((g) => g.blockId === blockId)) setBlockId(groups[0].blockId);
+
     setStore((prev) => {
       const next = { ...prev };
       for (const g of groups) {
@@ -193,6 +197,7 @@ export default function ArrangePage() {
       }
       return next;
     });
+  };
 
   const download = () => {
     const blob = new Blob([JSON.stringify(toArrangeFile(items), null, 2) + '\n'], {
