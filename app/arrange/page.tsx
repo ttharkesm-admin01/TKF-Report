@@ -5,8 +5,10 @@ import { SiteNav } from '@/components/nav/SiteNav';
 import { allPhotosOf, expectedFolder } from '@/lib/photos';
 import { photoBlocks } from '@/lib/photoBlocks';
 import { humanSize, type Prepared } from '@/lib/resize';
+import { prepareMany } from '@/lib/prepareMany';
+import { type DroppedFile } from '@/lib/dropFiles';
 import { readJsonFile, type CommitFile } from '@/lib/github';
-import { PhotoDrop, type AddedGroup } from '@/components/arrange/PhotoDrop';
+import { BlockBoard, type BlockCount } from '@/components/arrange/BlockBoard';
 import { CommitPanel } from '@/components/arrange/CommitPanel';
 import { IconEye, IconEyeOff, IconLeft, IconRight } from '@/components/ui/icons';
 
@@ -122,6 +124,9 @@ export default function ArrangePage() {
   const [baseline, setBaseline] = useState<Record<string, string>>({});
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [saved, setSaved] = useState('');
+  /** ข้อความระหว่างย่อรูป และข้อความบอกไฟล์ที่ตกไป */
+  const [busy, setBusy] = useState('');
+  const [note, setNote] = useState('');
 
   const block = useMemo(() => photoBlocks.find((b) => b.id === blockId), [blockId]);
   const items = useMemo(() => store[blockId] ?? [], [store, blockId]);
@@ -170,33 +175,53 @@ export default function ArrangePage() {
   const patch = (i: number, p: Partial<Item>) =>
     setItems(blockId, (prev) => prev.map((it, k) => (k === i ? { ...it, ...p } : it)));
 
-  /** รูปที่ย่อเสร็จแล้วจาก PhotoDrop — ลงได้หลายบล็อกในครั้งเดียว */
-  const addGroups = (groups: AddedGroup[]) => {
-    // ลากโฟลเดอร์เข้ามาแล้วรูปไปลงหัวข้ออื่นหมด ถ้ายังค้างอยู่หัวข้อเดิมที่ว่างเปล่า
-    // หน้าจะขึ้นว่า "ยังไม่มีรูปในหัวข้อนี้" ทั้งที่เพิ่งลงไปเป็นร้อยใบ — เด้งไปหัวข้อแรกที่ได้รูป
-    if (groups.length && !groups.some((g) => g.blockId === blockId)) setBlockId(groups[0].blockId);
-
+  /** รูปที่ย่อเสร็จแล้ว — ต่อท้ายหัวข้อที่ลากใส่ */
+  const addPrepared = (id: string, prepared: Prepared[]) =>
     setStore((prev) => {
-      const next = { ...prev };
-      for (const g of groups) {
-        const cur = next[g.blockId] ?? [];
-        const taken = new Set(cur.map((i) => i.file));
-        const added: Item[] = [];
-        for (const p of g.items) {
-          const name = freeName(p.name, taken);
-          taken.add(name);
-          added.push({
-            file: name,
-            src: p.previewUrl,
-            caption: '',
-            hidden: false,
-            pending: { ...p, name },
-          });
-        }
-        next[g.blockId] = [...cur, ...added];
+      const cur = prev[id] ?? [];
+      const taken = new Set(cur.map((i) => i.file));
+      const added: Item[] = [];
+      for (const p of prepared) {
+        const name = freeName(p.name, taken);
+        taken.add(name);
+        added.push({
+          file: name,
+          src: p.previewUrl,
+          caption: '',
+          hidden: false,
+          pending: { ...p, name },
+        });
       }
-      return next;
+      return { ...prev, [id]: [...cur, ...added] };
     });
+
+  /**
+   * รับสิ่งที่ลากทิ้งบนการ์ด (หรือเลือกจากปุ่มบนการ์ด) แล้วย่อก่อนเก็บ
+   * ลากโฟลเดอร์ทิ้งบนการ์ดก็ได้ — รูปข้างในทุกชั้นลงหัวข้อของการ์ดนั้นทั้งหมด
+   */
+  const takeFiles = async (id: string, dropped: DroppedFile[]) => {
+    setNote('');
+    const images = dropped.filter((d) => d.file.type.startsWith('image/'));
+    const skipped = dropped.length - images.length;
+    if (!images.length) {
+      setNote('ไม่พบไฟล์รูปในสิ่งที่ลากมา');
+      return;
+    }
+
+    // เปิดหัวข้อที่เพิ่งลากใส่ให้เลย จะได้เห็นว่ารูปลงจริงและจัดต่อได้ทันที
+    setBlockId(id);
+    const title = photoBlocks.find((b) => b.id === id)?.title ?? id;
+    const { items: prepared, failed } = await prepareMany(images.map((d) => d.file), (done, total) =>
+      setBusy(`กำลังย่อรูป ${done}/${total} · ${title}`),
+    );
+    setBusy('');
+
+    const notes: string[] = [];
+    if (skipped) notes.push(`ข้ามไฟล์ที่ไม่ใช่รูป ${skipped} ไฟล์`);
+    if (failed.length) notes.push(`ย่อไม่สำเร็จ ${failed.length} ไฟล์: ${failed.slice(0, 3).join(', ')}`);
+    setNote(notes.join(' · '));
+
+    if (prepared.length) addPrepared(id, prepared);
   };
 
   const download = () => {
@@ -246,6 +271,13 @@ export default function ArrangePage() {
     [store, baseline],
   );
 
+  const counts: Record<string, BlockCount> = Object.fromEntries(
+    photoBlocks.map((b) => {
+      const list = store[b.id] ?? [];
+      return [b.id, { total: list.length, pending: list.filter((i) => i.pending).length }];
+    }),
+  );
+
   const pendingAll = dirtyIds.flatMap((id) => (store[id] ?? []).filter((i) => i.pending));
   const pendingBytes = pendingAll.reduce((n, i) => n + i.pending!.blob.size, 0);
   const savedBytes = pendingAll.reduce(
@@ -293,66 +325,36 @@ export default function ArrangePage() {
       <main id="main" className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <h1 className="text-2xl font-bold tracking-tight">ลงรูป</h1>
       <p className="mt-2 text-sm leading-relaxed text-muted">
-        ลากรูปใส่ จัดลำดับ ซ่อนรูปที่ไม่เอา ใส่คำบรรยาย แล้วกดส่งเข้าระบบ ·
-        ลงหลายหัวข้อพร้อมกันแล้วส่งทีเดียวได้
+        ลากรูปทิ้งบนการ์ดของหัวข้อนั้นได้เลย · ลงหลายหัวข้อแล้วกดส่งทีเดียวได้
       </p>
 
-      <div className="mt-4">
-        <PhotoDrop currentBlockId={blockId} onAdd={addGroups} />
+      <div className="mt-6">
+        <BlockBoard
+          selected={blockId}
+          counts={counts}
+          busy={busy}
+          onSelect={setBlockId}
+          onFiles={(id, files) => void takeFiles(id, files)}
+        />
       </div>
 
-      {dirtyIds.length > 0 && (
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-muted">
-            รอส่ง {dirtyIds.length} หัวข้อ
-            {pendingAll.length > 0 && ` · รูปใหม่ ${pendingAll.length} ใบ`}:
-          </span>
-          {dirtyIds.map((id) => {
-            const nu = (store[id] ?? []).filter((i) => i.pending).length;
-            const b = photoBlocks.find((x) => x.id === id);
-            return (
-              <button
-                key={id}
-                onClick={() => setBlockId(id)}
-                aria-current={id === blockId}
-                className={`chip ${id === blockId ? 'chip-brand' : 'chip-warn'}`}
-                title={b?.title}
-              >
-                <span className="font-mono">{id}</span>
-                {nu > 0 && <span className="ml-1 tabular-nums">+{nu}</span>}
-              </button>
-            );
-          })}
-        </div>
+      {note && (
+        <p className="note note-warn mt-4" role="alert">
+          {note}
+        </p>
       )}
 
-      <label className="mt-6 block text-sm font-medium">
-        กำลังจัดหัวข้อ
-        <select
-          value={blockId}
-          onChange={(e) => setBlockId(e.target.value)}
-          className="field mt-1.5 text-base"
-        >
-          {photoBlocks.map((b) => {
-            const list = store[b.id] ?? [];
-            const nu = list.filter((i) => i.pending).length;
-            return (
-              <option key={b.id} value={b.id}>
-                {b.sectionNumber} · {b.title} ({b.id})
-                {list.length > 0 && ` — ${list.length} รูป`}
-                {nu > 0 && ` · ใหม่ ${nu}`}
-              </option>
-            );
-          })}
-        </select>
-      </label>
-
-      <p className="mt-2 text-xs text-muted">
+      <h2 className="mt-8 border-t border-edge pt-6 text-lg font-semibold">
+        {block ? `จัดรูป: ${block.title}` : 'จัดรูป'}
+      </h2>
+      <p className="mt-1 text-xs text-muted">
         ลงที่ <span className="font-mono break-all">{folder}</span>
       </p>
 
       {items.length === 0 ? (
-        <p className="card mt-8 px-4 py-10 text-center text-muted">ยังไม่มีรูปในหัวข้อนี้</p>
+        <p className="card mt-4 px-4 py-10 text-center text-muted">
+          ยังไม่มีรูปในหัวข้อนี้ — ลากรูปทิ้งบนการ์ดข้างบน
+        </p>
       ) : (
         <>
           <div className="mt-5 flex flex-wrap items-center gap-3 text-sm">
