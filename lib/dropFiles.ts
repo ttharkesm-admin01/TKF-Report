@@ -76,7 +76,3 @@ export function fromInput(list: FileList): DroppedFile[] {
     folder: parentFolder(file.webkitRelativePath || file.name),
   }));
 }
-
-/** เบราว์เซอร์ที่ไม่รู้จัก entry API — ยังลากไฟล์เดี่ยวได้ แค่ลากโฟลเดอร์ไม่ได้ */
-export const canReadFolders = (): boolean =>
-  typeof DataTransferItem !== 'undefined' && 'webkitGetAsEntry' in DataTransferItem.prototype;
