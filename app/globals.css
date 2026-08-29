@@ -54,8 +54,10 @@
   --ui-shadow-sm:    0 1px 2px rgb(15 23 26 / 0.06);
 }
 
-/* ---- โหมดมืด: ตามเครื่อง เว้นแต่ผู้ใช้เลือกไว้เอง ---- */
-@media (prefers-color-scheme: dark) {
+/* ---- โหมดมืด: ตามเครื่อง เว้นแต่ผู้ใช้เลือกไว้เอง ----
+   `screen` สำคัญ: กันค่าชุดมืดหลุดไปตอนพิมพ์ · ไม่งั้นสั่งพิมพ์หน้ากรอกข้อมูล
+   ขณะเปิดโหมดมืดจะได้กระดาษขาวแต่กล่องเตือนเป็นสีเข้ม */
+@media screen and (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
@@ -85,7 +87,8 @@
   }
 }
 
-/* ผู้ใช้กดสลับเอง — ชนะค่าของเครื่องเสมอ */
+/* ผู้ใช้กดสลับเอง — ชนะค่าของเครื่องเสมอ (แต่ยังไม่ข้ามไปกระดาษ) */
+@media screen {
 :root[data-theme='dark'] {
   color-scheme: dark;
 
@@ -112,6 +115,7 @@
 
   --ui-shadow:       0 1px 2px rgb(0 0 0 / 0.4), 0 12px 28px -14px rgb(0 0 0 / 0.7);
   --ui-shadow-sm:    0 1px 2px rgb(0 0 0 / 0.35);
+}
 }
 
 /* ผูกตัวแปรข้างบนเข้ากับคลาสของ Tailwind — `inline` ทำให้คลาสอ้าง var()
@@ -157,7 +161,8 @@ body {
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--ui-primary);
   outline-offset: 2px;
-  border-radius: 0.375rem;
+  /* ห้ามตั้ง border-radius ตรงนี้ — กฎนี้อยู่นอก @layer จึงทับ rounded-* ของ Tailwind
+     ทุกตัว แล้วมุมปุ่มจะเปลี่ยนรูปตอนโฟกัส · outline วิ่งตามมุมของ element เองอยู่แล้ว */
 }
 
 ::selection {
@@ -286,13 +291,9 @@ html {
   /* 13.333in x 7.5in = ขนาดสไลด์ PowerPoint จอกว้าง พิมพ์แล้วได้สัดส่วนเดิมเป๊ะ */
   @page { size: 338.67mm 190.5mm; margin: 0; }
 
-  /* พิมพ์ตอนเปิดโหมดมืดอยู่ ต้องได้กระดาษขาวเหมือนกัน */
-  :root, :root[data-theme='dark'] {
-    color-scheme: light;
-    --ui-canvas: #ffffff;
-    --ui-surface: #ffffff;
-    --ui-fg: #1a1a1a;
-  }
+  /* ชุดโทเคนโหมดมืดถูกจำกัดไว้ที่ `screen` แล้ว ตรงนี้จึงได้ค่าชุดสว่างครบทุกตัวเอง
+     ไม่ใช่แค่พื้นกับตัวอักษรอย่างที่เคยทำ (กล่องเตือนเคยพิมพ์ออกมาเป็นสีเข้ม) */
+  :root { color-scheme: light; }
 
   body { background: #fff; }
   .no-print { display: none !important; }

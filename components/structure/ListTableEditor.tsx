@@ -53,7 +53,16 @@ export function ListTableEditor({
   };
 
   const addRow = () => setRows([...rows, Object.fromEntries(columns.map((c) => [c.key, null]))]);
-  const removeRow = (i: number) => setRows(rows.filter((_, k) => k !== i));
+
+  /** แถวที่ยังไม่ได้กรอกอะไรเลย ลบทิ้งไม่มีอะไรเสียหาย */
+  const rowIsEmpty = (r: Row) =>
+    Object.values(r).every((v) => v === null || (!Array.isArray(v) && String(v).trim() === ''));
+
+  const removeRow = (i: number) => {
+    // ปุ่มลบอยู่ติดกับปุ่มเลื่อน กดพลาดได้ง่าย · แถวหนึ่งคือข้อมูลทั้งบรรทัด ไม่ใช่ช่องเดียว
+    if (!rowIsEmpty(rows[i]) && !confirm(`ลบแถวที่ ${i + 1} ทั้งแถวออกจากตาราง?`)) return;
+    setRows(rows.filter((_, k) => k !== i));
+  };
   const moveRow = (i: number, d: number) => {
     const j = i + d;
     if (j < 0 || j >= rows.length) return;
@@ -161,7 +170,7 @@ export function ListTableEditor({
             <table className="w-full min-w-[560px] border-collapse text-xs">
               <thead>
                 <tr className="bg-primary text-on-primary">
-                  <th className="w-20 border border-edge px-1 py-1.5">ลำดับ</th>
+                  <th className="w-28 border border-edge px-1 py-1.5">ลำดับ</th>
                   {columns.map((c) => (
                     <th key={c.key} className="border border-edge px-1.5 py-1.5 text-left">
                       {c.label}
@@ -173,29 +182,33 @@ export function ListTableEditor({
                 {rows.map((r, i) => (
                   <tr key={i} className="even:bg-surface-2/60">
                     <td className="border border-edge px-1 py-1 whitespace-nowrap">
-                      <button
-                        onClick={() => moveRow(i, -1)}
-                        disabled={i === 0}
-                        aria-label={`เลื่อนแถวที่ ${i + 1} ขึ้น`}
-                        className="cursor-pointer px-1 align-middle disabled:opacity-30"
-                      >
-                        <IconUp className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={() => moveRow(i, 1)}
-                        disabled={i === rows.length - 1}
-                        aria-label={`เลื่อนแถวที่ ${i + 1} ลง`}
-                        className="cursor-pointer px-1 align-middle disabled:opacity-30"
-                      >
-                        <IconDown className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={() => removeRow(i)}
-                        aria-label={`ลบแถวที่ ${i + 1}`}
-                        className="cursor-pointer px-1 align-middle text-danger-ink"
-                      >
-                        <IconTrash className="h-3.5 w-3.5" />
-                      </button>
+                      {/* ปุ่มไอคอนล้วนต้องไม่เล็กกว่า 24px — ของเดิม 22x14 กดพลาดง่าย
+                          และปุ่มที่กดพลาดคือปุ่มลบทั้งแถว */}
+                      <span className="flex items-center gap-0.5">
+                        <button
+                          onClick={() => moveRow(i, -1)}
+                          disabled={i === 0}
+                          aria-label={`เลื่อนแถวที่ ${i + 1} ขึ้น`}
+                          className="btn btn-quiet btn-sm w-7 px-0"
+                        >
+                          <IconUp className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => moveRow(i, 1)}
+                          disabled={i === rows.length - 1}
+                          aria-label={`เลื่อนแถวที่ ${i + 1} ลง`}
+                          className="btn btn-quiet btn-sm w-7 px-0"
+                        >
+                          <IconDown className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => removeRow(i)}
+                          aria-label={`ลบแถวที่ ${i + 1}`}
+                          className="btn btn-quiet btn-sm w-7 px-0 text-danger-ink"
+                        >
+                          <IconTrash className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
                     </td>
                     {columns.map((c) => {
                       const v = r[c.key] ?? null;
@@ -211,7 +224,7 @@ export function ListTableEditor({
                                 value={range[0]}
                                 aria-label={`${c.label} เดือนเริ่ม`}
                                 onChange={(e) => setCell(i, c.key, [Number(e.target.value), range[1]])}
-                                className="field w-14 px-1 py-0.5 text-xs"
+                                className="field w-14 px-1 py-1 text-xs"
                               />
                               <span aria-hidden="true">–</span>
                               <input
@@ -221,7 +234,7 @@ export function ListTableEditor({
                                 value={range[1]}
                                 aria-label={`${c.label} เดือนจบ`}
                                 onChange={(e) => setCell(i, c.key, [range[0], Number(e.target.value)])}
-                                className="field w-14 px-1 py-0.5 text-xs"
+                                className="field w-14 px-1 py-1 text-xs"
                               />
                             </span>
                           </td>
@@ -233,7 +246,7 @@ export function ListTableEditor({
                             value={v === null ? '' : String(v)}
                             aria-label={`${c.label} แถวที่ ${i + 1}`}
                             onChange={(e) => setCell(i, c.key, e.target.value || null)}
-                            className="field w-full min-w-24 px-1 py-0.5 text-xs"
+                            className="field w-full min-w-24 px-1 py-1 text-xs"
                           />
                         </td>
                       );

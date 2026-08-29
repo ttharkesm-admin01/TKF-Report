@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 export function Slide({ id, children }: { id?: string; children: ReactNode }) {
   return (
     // scroll-mt เผื่อความสูงของแถบเมนูที่ติดอยู่บนสุด — ลิงก์จากสารบัญจะได้ไม่ตกใต้แถบ
-    <section id={id} className="slide scroll-mt-16 rounded-lg border border-line shadow-card print:rounded-none">
+    <section id={id} className="slide scroll-mt-16 rounded-lg border border-line shadow-md print:rounded-none">
       {children}
     </section>
   );
