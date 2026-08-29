@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { SiteNav } from '@/components/nav/SiteNav';
 import { allPhotosOf, expectedFolder } from '@/lib/photos';
 import { photoBlocks } from '@/lib/photoBlocks';
 import { humanSize, type Prepared } from '@/lib/resize';
 import { readJsonFile, type CommitFile } from '@/lib/github';
-import { PhotoDrop } from '@/components/arrange/PhotoDrop';
+import { PhotoDrop, type AddedGroup } from '@/components/arrange/PhotoDrop';
 import { CommitPanel } from '@/components/arrange/CommitPanel';
 import { IconEye, IconEyeOff, IconLeft, IconRight } from '@/components/ui/icons';
 
@@ -18,6 +18,9 @@ interface Item {
   /** มีค่า = เพิ่งลากเข้ามา ยังไม่ได้ส่งเข้ารีโป */
   pending?: Prepared;
 }
+
+/** รูปของทุกบล็อก อยู่ในหน้าเดียวกัน — สลับบล็อกแล้วรูปที่ลากมายังไม่ส่งต้องไม่หาย */
+type Store = Record<string, Item[]>;
 
 const storageKey = (blockId: string) => `arrange:${blockId}`;
 
@@ -66,69 +69,97 @@ function mergeArrange(live: ArrangeFile | null, mine: ArrangeFile): ArrangeFile 
   };
 }
 
+/** ชื่อไฟล์ซ้ำต้องไม่ทับของเดิม — ลำดับรูปยึดตามชื่อไฟล์ ทับแล้วเรียงเพี้ยน */
+function freeName(name: string, taken: Set<string>): string {
+  if (!taken.has(name)) return name;
+  const dot = name.lastIndexOf('.');
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const ext = dot > 0 ? name.slice(dot) : '';
+  let n = 2;
+  while (taken.has(`${stem}-${n}${ext}`)) n += 1;
+  return `${stem}-${n}${ext}`;
+}
+
+/** รูปของบล็อกหนึ่ง: ของในรีโป ทับด้วยงานที่ค้างไว้ในเบราว์เซอร์ (ถ้ามี) */
+function loadBlock(blockId: string): { items: Item[]; baseline: string } {
+  const base: Item[] = allPhotosOf(blockId).map((p) => ({
+    file: p.file,
+    src: p.src,
+    caption: p.caption ?? '',
+    hidden: Boolean(p.hidden),
+  }));
+  // เทียบกับของในรีโปเสมอ ไม่ใช่ของที่ค้างไว้ — ปิดหน้าไปแล้วกลับมากดส่งต่อได้
+  const baseline = JSON.stringify(toArrangeFile(base));
+
+  let draft: ArrangeFile | null = null;
+  try {
+    const raw = localStorage.getItem(storageKey(blockId));
+    if (raw) draft = JSON.parse(raw) as ArrangeFile;
+  } catch {
+    draft = null;
+  }
+  if (!draft) return { items: base, baseline };
+
+  const byFile = new Map(base.map((i) => [i.file, i]));
+  const ordered = draft.order.map((f) => byFile.get(f)).filter((i): i is Item => Boolean(i));
+  const rest = base.filter((i) => !draft.order.includes(i.file));
+  const hidden = new Set(draft.hidden);
+
+  return {
+    items: [...ordered, ...rest].map((i) => ({
+      ...i,
+      hidden: hidden.has(i.file),
+      caption: draft.captions[i.file] ?? i.caption,
+    })),
+    baseline,
+  };
+}
+
 export default function ArrangePage() {
   const [blockId, setBlockId] = useState(photoBlocks[0]?.id ?? '');
-  const [items, setItems] = useState<Item[]>([]);
+  const [store, setStore] = useState<Store>({});
+  /** การจัดวางของแต่ละบล็อกในรีโป — เทียบเพื่อรู้ว่ามีอะไรเปลี่ยนจริงไหม */
+  const [baseline, setBaseline] = useState<Record<string, string>>({});
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [saved, setSaved] = useState('');
-  /** การจัดวางตอนเปิดบล็อกนี้ — เทียบเพื่อรู้ว่ามีอะไรเปลี่ยนจริงไหม */
-  const [baseline, setBaseline] = useState('');
 
   const block = useMemo(() => photoBlocks.find((b) => b.id === blockId), [blockId]);
+  const items = useMemo(() => store[blockId] ?? [], [store, blockId]);
 
-  // โหลดรูปของบล็อก แล้วทับด้วยงานที่ค้างไว้ในเบราว์เซอร์ (ถ้ามี)
+  // โหลดทุกบล็อกทีเดียวตอนเปิดหน้า · localStorage อ่านได้หลัง hydrate เท่านั้น
   useEffect(() => {
-    if (!blockId) return;
-    const base: Item[] = allPhotosOf(blockId).map((p) => ({
-      file: p.file,
-      src: p.src,
-      caption: p.caption ?? '',
-      hidden: Boolean(p.hidden),
-    }));
-
-    let draft: ReturnType<typeof toArrangeFile> | null = null;
-    try {
-      const raw = localStorage.getItem(storageKey(blockId));
-      if (raw) draft = JSON.parse(raw);
-    } catch {
-      draft = null;
+    const nextStore: Store = {};
+    const nextBase: Record<string, string> = {};
+    for (const b of photoBlocks) {
+      const loaded = loadBlock(b.id);
+      nextStore[b.id] = loaded.items;
+      nextBase[b.id] = loaded.baseline;
     }
+    setStore(nextStore);
+    setBaseline(nextBase);
+  }, []);
 
-    const settle = (next: Item[]) => {
-      setItems(next);
-      setBaseline(JSON.stringify(toArrangeFile(next)));
-    };
-
-    if (!draft) {
-      settle(base);
-      return;
-    }
-
-    const byFile = new Map(base.map((i) => [i.file, i]));
-    const ordered = draft.order.map((f) => byFile.get(f)).filter((i): i is Item => Boolean(i));
-    const rest = base.filter((i) => !draft!.order.includes(i.file));
-    const hidden = new Set(draft.hidden);
-    settle(
-      [...ordered, ...rest].map((i) => ({
-        ...i,
-        hidden: hidden.has(i.file),
-        caption: draft!.captions[i.file] ?? i.caption,
-      })),
-    );
-  }, [blockId]);
-
-  // เก็บงานที่ทำค้างไว้ ปิดหน้าไปแล้วกลับมาต่อได้
+  // เก็บงานที่ทำค้างไว้ ปิดหน้าไปแล้วกลับมาต่อได้ (เก็บได้แค่ลำดับ/คำบรรยาย ตัวรูปเก็บไม่ได้)
+  const written = useRef<Record<string, string>>({});
   useEffect(() => {
-    if (!blockId || !items.length) return;
-    try {
-      localStorage.setItem(storageKey(blockId), JSON.stringify(toArrangeFile(items)));
-    } catch {
-      /* เบราว์เซอร์ปิด storage อยู่ — ไม่เป็นไร แค่ไม่ได้เก็บงานค้าง */
+    for (const [id, list] of Object.entries(store)) {
+      if (!list.length) continue;
+      const s = JSON.stringify(toArrangeFile(list));
+      if (written.current[id] === s) continue;
+      written.current[id] = s;
+      try {
+        localStorage.setItem(storageKey(id), s);
+      } catch {
+        /* เบราว์เซอร์ปิด storage อยู่ — ไม่เป็นไร แค่ไม่ได้เก็บงานค้าง */
+      }
     }
-  }, [blockId, items]);
+  }, [store]);
+
+  const setItems = (id: string, fn: (prev: Item[]) => Item[]) =>
+    setStore((prev) => ({ ...prev, [id]: fn(prev[id] ?? []) }));
 
   const move = (from: number, to: number) =>
-    setItems((prev) => {
+    setItems(blockId, (prev) => {
       if (to < 0 || to >= prev.length) return prev;
       const next = [...prev];
       const [x] = next.splice(from, 1);
@@ -137,19 +168,31 @@ export default function ArrangePage() {
     });
 
   const patch = (i: number, p: Partial<Item>) =>
-    setItems((prev) => prev.map((it, k) => (k === i ? { ...it, ...p } : it)));
+    setItems(blockId, (prev) => prev.map((it, k) => (k === i ? { ...it, ...p } : it)));
 
-  const addPrepared = (added: Prepared[]) =>
-    setItems((prev) => [
-      ...prev,
-      ...added.map((p) => ({
-        file: p.name,
-        src: p.previewUrl,
-        caption: '',
-        hidden: false,
-        pending: p,
-      })),
-    ]);
+  /** รูปที่ย่อเสร็จแล้วจาก PhotoDrop — ลงได้หลายบล็อกในครั้งเดียว */
+  const addGroups = (groups: AddedGroup[]) =>
+    setStore((prev) => {
+      const next = { ...prev };
+      for (const g of groups) {
+        const cur = next[g.blockId] ?? [];
+        const taken = new Set(cur.map((i) => i.file));
+        const added: Item[] = [];
+        for (const p of g.items) {
+          const name = freeName(p.name, taken);
+          taken.add(name);
+          added.push({
+            file: name,
+            src: p.previewUrl,
+            caption: '',
+            hidden: false,
+            pending: { ...p, name },
+          });
+        }
+        next[g.blockId] = [...cur, ...added];
+      }
+      return next;
+    });
 
   const download = () => {
     const blob = new Blob([JSON.stringify(toArrangeFile(items), null, 2) + '\n'], {
@@ -169,7 +212,7 @@ export default function ArrangePage() {
   };
 
   const resetToFilename = () =>
-    setItems((prev) =>
+    setItems(blockId, (prev) =>
       [...prev].sort((a, b) => a.file.localeCompare(b.file, 'en', { numeric: true })),
     );
 
@@ -184,28 +227,60 @@ export default function ArrangePage() {
 
   const folder = blockId ? expectedFolder(blockId) : '';
 
-  const arrangePath = folder + 'arrange.json';
-  const current = JSON.stringify(toArrangeFile(items));
-  /** ไม่มีรูปใหม่และลำดับก็ไม่ขยับ = ไม่มีอะไรต้องส่ง */
-  const dirty = pending.length > 0 || (Boolean(baseline) && current !== baseline);
-  const fileCount = dirty ? pending.length + 1 : 0;
+  /** บล็อกที่มีอะไรเปลี่ยนจริง — รูปใหม่ ลำดับขยับ ซ่อน หรือคำบรรยาย */
+  const dirtyIds = useMemo(
+    () =>
+      photoBlocks
+        .map((b) => b.id)
+        .filter(
+          (id) =>
+            baseline[id] !== undefined &&
+            store[id] &&
+            JSON.stringify(toArrangeFile(store[id])) !== baseline[id],
+        ),
+    [store, baseline],
+  );
+
+  const pendingAll = dirtyIds.flatMap((id) => (store[id] ?? []).filter((i) => i.pending));
+  const pendingBytes = pendingAll.reduce((n, i) => n + i.pending!.blob.size, 0);
+  const savedBytes = pendingAll.reduce(
+    (n, i) => n + i.pending!.originalSize - i.pending!.blob.size,
+    0,
+  );
+  /** รูปใหม่ทุกใบ + arrange.json ของทุกบล็อกที่แตะ */
+  const fileCount = pendingAll.length + dirtyIds.length;
+
+  // รูปที่ย่อไว้อยู่ในหน่วยความจำอย่างเดียว ปิดหน้าแล้วหาย — เตือนก่อน
+  useEffect(() => {
+    if (!pendingAll.length) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [pendingAll.length]);
 
   // ส่งรูปใหม่ไปพร้อม arrange.json เสมอ ลำดับกับคำบรรยายจะได้ไม่หลุดจากกัน
   // อ่าน arrange.json ตัวปัจจุบันก่อนเขียนทับ (CLAUDE.md กฎข้อ 4) — ตอนกดส่ง ไม่ใช่ตอน render
   const getFiles = async (token: string): Promise<CommitFile[]> => {
-    if (!items.length) return [];
-    const liveArrange = await readJsonFile<ArrangeFile>(token, arrangePath);
-    return [
-      ...pending.map((i) => ({ path: folder + i.file, content: i.pending!.blob })),
-      {
-        path: arrangePath,
-        content: JSON.stringify(mergeArrange(liveArrange, toArrangeFile(items)), null, 2) + '\n',
-      },
-    ];
+    const out: CommitFile[] = [];
+    for (const id of dirtyIds) {
+      const list = store[id] ?? [];
+      const dir = expectedFolder(id);
+      const live = await readJsonFile<ArrangeFile>(token, dir + 'arrange.json');
+      for (const i of list) if (i.pending) out.push({ path: dir + i.file, content: i.pending.blob });
+      out.push({
+        path: dir + 'arrange.json',
+        content: JSON.stringify(mergeArrange(live, toArrangeFile(list)), null, 2) + '\n',
+      });
+    }
+    return out;
   };
 
-  const pendingBytes = pending.reduce((n, i) => n + i.pending!.blob.size, 0);
-  const savedBytes = pending.reduce((n, i) => n + i.pending!.originalSize - i.pending!.blob.size, 0);
+  const message = (() => {
+    const where = dirtyIds.length === 1 ? dirtyIds[0] : `${dirtyIds.length} blocks`;
+    return pendingAll.length
+      ? `Add ${pendingAll.length} photos to ${where}`
+      : `Update photo arrangement for ${where}`;
+  })();
 
   return (
     <>
@@ -213,21 +288,57 @@ export default function ArrangePage() {
       <main id="main" className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <h1 className="text-2xl font-bold tracking-tight">ลงรูป</h1>
       <p className="mt-2 text-sm leading-relaxed text-muted">
-        ลากรูปใส่ จัดลำดับ ซ่อนรูปที่ไม่เอา ใส่คำบรรยาย แล้วกดส่งเข้าระบบ
+        ลากรูปใส่ จัดลำดับ ซ่อนรูปที่ไม่เอา ใส่คำบรรยาย แล้วกดส่งเข้าระบบ ·
+        ลงหลายหัวข้อพร้อมกันแล้วส่งทีเดียวได้
       </p>
 
+      <div className="mt-4">
+        <PhotoDrop currentBlockId={blockId} onAdd={addGroups} />
+      </div>
+
+      {dirtyIds.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted">
+            รอส่ง {dirtyIds.length} หัวข้อ
+            {pendingAll.length > 0 && ` · รูปใหม่ ${pendingAll.length} ใบ`}:
+          </span>
+          {dirtyIds.map((id) => {
+            const nu = (store[id] ?? []).filter((i) => i.pending).length;
+            const b = photoBlocks.find((x) => x.id === id);
+            return (
+              <button
+                key={id}
+                onClick={() => setBlockId(id)}
+                aria-current={id === blockId}
+                className={`chip ${id === blockId ? 'chip-brand' : 'chip-warn'}`}
+                title={b?.title}
+              >
+                <span className="font-mono">{id}</span>
+                {nu > 0 && <span className="ml-1 tabular-nums">+{nu}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <label className="mt-6 block text-sm font-medium">
-        บล็อกรูป
+        กำลังจัดหัวข้อ
         <select
           value={blockId}
           onChange={(e) => setBlockId(e.target.value)}
           className="field mt-1.5 text-base"
         >
-          {photoBlocks.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.sectionNumber} · {b.title} ({b.id})
-            </option>
-          ))}
+          {photoBlocks.map((b) => {
+            const list = store[b.id] ?? [];
+            const nu = list.filter((i) => i.pending).length;
+            return (
+              <option key={b.id} value={b.id}>
+                {b.sectionNumber} · {b.title} ({b.id})
+                {list.length > 0 && ` — ${list.length} รูป`}
+                {nu > 0 && ` · ใหม่ ${nu}`}
+              </option>
+            );
+          })}
         </select>
       </label>
 
@@ -235,12 +346,8 @@ export default function ArrangePage() {
         ลงที่ <span className="font-mono break-all">{folder}</span>
       </p>
 
-      <div className="mt-4">
-        <PhotoDrop existingNames={items.map((i) => i.file)} onAdd={addPrepared} />
-      </div>
-
       {items.length === 0 ? (
-        <p className="card mt-8 px-4 py-10 text-center text-muted">ยังไม่มีรูปในบล็อกนี้</p>
+        <p className="card mt-8 px-4 py-10 text-center text-muted">ยังไม่มีรูปในหัวข้อนี้</p>
       ) : (
         <>
           <div className="mt-5 flex flex-wrap items-center gap-3 text-sm">
@@ -257,11 +364,7 @@ export default function ArrangePage() {
               {shown} รูปขึ้นสไลด์
               {items.length - shown > 0 && ` · ซ่อน ${items.length - shown}`}
               {pending.length > 0 && (
-                <span className="ml-2 font-medium text-warn-ink">
-                  ใหม่ {pending.length} รูป · รวม {humanSize(pendingBytes)}
-                  {/* ภาพสแกนที่เล็กอยู่แล้วอาจไม่ได้เล็กลง จึงบอกเฉพาะตอนที่ประหยัดจริง */}
-                  {savedBytes > 0 && ` (เล็กลง ${humanSize(savedBytes)})`}
-                </span>
+                <span className="ml-2 font-medium text-warn-ink">ใหม่ {pending.length} รูป</span>
               )}
               {saved && <span className="ml-2 font-medium text-primary">{saved}</span>}
             </span>
@@ -348,27 +451,37 @@ export default function ArrangePage() {
               </li>
             ))}
           </ol>
-
-          <CommitPanel
-            count={fileCount}
-            disabled={!dirty}
-            getFiles={getFiles}
-            message={
-              pending.length
-                ? `Add ${pending.length} photos to ${blockId}`
-                : `Update photo arrangement for ${blockId}`
-            }
-            onDone={() => {
-              // ส่งไปแล้วไม่ต้องส่งซ้ำ · ตัวอย่างรูปยังดูได้จนกว่าจะปิดหน้า
-              setItems((prev) => {
-                const next = prev.map((i) => ({ ...i, pending: undefined }));
-                setBaseline(JSON.stringify(toArrangeFile(next)));
-                return next;
-              });
-            }}
-          />
         </>
       )}
+
+      {/* ส่งทุกหัวข้อที่แตะไว้ในคอมมิตเดียว — ไม่ต้องกดส่งทีละหัวข้อ */}
+      <CommitPanel
+        count={fileCount}
+        disabled={dirtyIds.length === 0}
+        getFiles={getFiles}
+        message={message}
+        summary={
+          dirtyIds.length > 0 ? (
+            <>
+              {dirtyIds.length} หัวข้อ · รูปใหม่ {pendingAll.length} ใบ
+              {pendingAll.length > 0 && ` รวม ${humanSize(pendingBytes)}`}
+              {/* ภาพสแกนที่เล็กอยู่แล้วอาจไม่ได้เล็กลง จึงบอกเฉพาะตอนที่ประหยัดจริง */}
+              {savedBytes > 0 && ` (เล็กลง ${humanSize(savedBytes)})`}
+            </>
+          ) : null
+        }
+        onDone={() => {
+          // ส่งไปแล้วไม่ต้องส่งซ้ำ · ตัวอย่างรูปยังดูได้จนกว่าจะปิดหน้า
+          const nextStore: Store = {};
+          const nextBase = { ...baseline };
+          for (const [id, list] of Object.entries(store)) {
+            nextStore[id] = list.map((i) => ({ ...i, pending: undefined }));
+            nextBase[id] = JSON.stringify(toArrangeFile(nextStore[id]));
+          }
+          setStore(nextStore);
+          setBaseline(nextBase);
+        }}
+      />
       </main>
     </>
   );

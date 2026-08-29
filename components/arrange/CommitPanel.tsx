@@ -17,6 +17,7 @@ export function CommitPanel({
   getFiles,
   message,
   disabled,
+  summary,
   onDone,
 }: {
   /** จำนวนไฟล์ที่จะส่ง — ไว้โชว์บนปุ่มเท่านั้น */
@@ -28,6 +29,8 @@ export function CommitPanel({
   getFiles: (token: string) => Promise<CommitFile[]>;
   message: string;
   disabled?: boolean;
+  /** สรุปสั้น ๆ ว่ากำลังจะส่งอะไรไปบ้าง — แสดงเหนือปุ่ม */
+  summary?: React.ReactNode;
   onDone: () => void;
 }) {
   // โทเคนอยู่ที่ส่วนกลาง หน้าที่ครอบอยู่จะได้ดึงของสดจากรีโปทันทีที่พิมพ์เสร็จ
@@ -124,6 +127,12 @@ export function CommitPanel({
         — เลือก Repository access = เฉพาะ <span className="font-mono">{repo.repo}</span> ·
         Permissions → Contents = <b>Read and write</b> · ตั้งวันหมดอายุด้วย
       </p>
+
+      {summary && (
+        <p className="note note-warn mt-4" role="status">
+          {summary}
+        </p>
+      )}
 
       <div className="mt-4 flex items-center gap-3">
         <button
