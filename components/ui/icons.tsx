@@ -109,3 +109,12 @@ export const IconAlert = (p: Props) => (
 export const IconExpand = (p: Props) => (
   <Svg {...p}><path d="M9 4H4v5M15 20h5v-5M4 15v5h5M20 9V4h-5" /></Svg>
 );
+
+export const IconKey = (p: Props) => (
+  <Svg {...p}><circle cx="8" cy="8" r="4" /><path d="m11 11 8 8m-3-3 2-2m-4 4 2-2" /></Svg>
+);
+
+/** เป้า — ใช้กับปุ่ม "ไปช่องว่างถัดไป" ที่หน้า /edit */
+export const IconTarget = (p: Props) => (
+  <Svg {...p}><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /></Svg>
+);

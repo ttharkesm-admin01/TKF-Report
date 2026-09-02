@@ -127,6 +127,8 @@ export default function ArrangePage() {
   /** ข้อความระหว่างย่อรูป และข้อความบอกไฟล์ที่ตกไป */
   const [busy, setBusy] = useState('');
   const [note, setNote] = useState('');
+  /** ตารางจัดรูปข้างล่าง — ลากรูปเสร็จแล้วพาสายตาลงมาดูของที่เพิ่งลง */
+  const panelRef = useRef<HTMLHeadingElement>(null);
 
   const block = useMemo(() => photoBlocks.find((b) => b.id === blockId), [blockId]);
   const items = useMemo(() => store[blockId] ?? [], [store, blockId]);
@@ -221,7 +223,12 @@ export default function ArrangePage() {
     if (failed.length) notes.push(`ย่อไม่สำเร็จ ${failed.length} ไฟล์: ${failed.slice(0, 3).join(', ')}`);
     setNote(notes.join(' · '));
 
-    if (prepared.length) addPrepared(id, prepared);
+    if (prepared.length) {
+      addPrepared(id, prepared);
+      // กระดานการ์ดสูงเกือบเต็มจอ ถ้าไม่พาลงมา รูปที่เพิ่งย่อเสร็จจะอยู่นอกสายตา
+      // แล้วดูไม่ออกว่าลงหัวข้อถูกไหม · รอให้ React วาดรูปใหม่ก่อนค่อยเลื่อน
+      requestAnimationFrame(() => panelRef.current?.scrollIntoView({ block: 'start' }));
+    }
   };
 
   const download = () => {
@@ -344,7 +351,10 @@ export default function ArrangePage() {
         </p>
       )}
 
-      <h2 className="mt-8 border-t border-edge pt-6 text-lg font-semibold">
+      <h2
+        ref={panelRef}
+        className="mt-8 scroll-mt-16 border-t border-edge pt-6 text-lg font-semibold"
+      >
         {block ? `จัดรูป: ${block.title}` : 'จัดรูป'}
       </h2>
       <p className="mt-1 text-xs text-muted">

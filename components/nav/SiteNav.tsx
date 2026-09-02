@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { meta } from '@/lib/deck';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { TokenStatus } from '@/components/nav/TokenStatus';
 import {
   IconBook,
   IconHome,
@@ -30,8 +31,12 @@ const LINKS = [
   { href: '/present', label: 'นำเสนอ', Icon: IconPlay },
 ] as const;
 
+/** หน้าที่ต้องใช้โทเคน — หน้าอื่นไม่ต้องรกด้วยป้ายที่ไม่เกี่ยว */
+const TOKEN_PAGES = ['/edit', '/arrange', '/structure'];
+
 export function SiteNav() {
   const path = usePathname();
+  const needsToken = TOKEN_PAGES.some((p) => path.startsWith(p));
 
   return (
     <>
@@ -82,6 +87,7 @@ export function SiteNav() {
             })}
           </div>
 
+          {needsToken && <TokenStatus />}
           <ThemeToggle />
         </div>
       </nav>
