@@ -19,7 +19,7 @@
  * ตัวอักษรจากใหญ่ไปเล็ก เลือกอันแรกที่ผ่านทั้งสองข้อ:
  *
  *   1. **กว้างพอ** — ทุกคอลัมน์กว้างพอใส่ข้อความที่ยาวที่สุดของตัวเอง
- *      และคอลัมน์ฉลากยังเหลือไม่น้อยกว่า 26% ของตาราง
+ *      และคอลัมน์ฉลากยังเหลือไม่น้อยกว่า 20% ของตาราง
  *   2. **สูงพอ** — ความสูงตารางที่ประเมินได้ ยังไม่เกินที่ว่างใต้หัวสไลด์
  *
  * ทุกอย่างคำนวณจากตัวเลขล้วน ๆ ไม่ต้องวัดในเบราว์เซอร์ ผลจึงตรงกันทั้งตอน
@@ -27,6 +27,10 @@
  *
  * ค่าคงที่ทุกตัวมาจากการ**วัดฟอนต์ Sarabun จริงในเบราว์เซอร์** ไม่ได้เดา
  * ถ้าเปลี่ยนฟอนต์หรือเปลี่ยน padding ในสไลด์ ต้องวัดใหม่ (ดู skill `verify`)
+ *
+ * **วิธีตรวจว่าโมเดลยังตรง**: ใส่ `data-fit={heightCqw}` ชั่วคราวบน `<table>` ใน
+ * `MatrixSlide.tsx` แล้วเทียบกับความสูงจริงในเบราว์เซอร์ · ค่าที่ประเมินต้อง
+ * **ไม่ต่ำกว่า**ของจริงทุกสไลด์ · ประเมินขาดเมื่อไรคือตารางจะล้นโดยไม่มีใครรู้
  */
 
 /* ---------- ค่าคงที่ที่วัดมาจากของจริง ---------- */
@@ -51,8 +55,19 @@ const BORDER = 0.1;
 /** ฉลากไทยตัดคำได้ ปลายบรรทัดจึงเหลือที่ว่างเสมอ — คิดว่าใช้ได้จริง 92% */
 const WRAP_FILL = 0.92;
 
+/**
+ * เผื่อความกว้างไว้ 6% เสมอ · ประเมินขาดแล้วเจ็บกว่าประเมินเกินมาก —
+ * ขาดไปนิดเดียวหัวตารางก็ตัดเป็นสองบรรทัด ตารางสูงขึ้นเกินที่คำนวณไว้ทั้งแผง
+ *
+ * มาจากสองทางรวมกัน วัดจริงทั้งคู่:
+ *  · หัวตารางกับแถวรวมเป็น `font-semibold` ซึ่งกว้างกว่าตัวปกติ ~3%
+ *  · ตัวอักษรไทยแต่ละตัวกว้างไม่เท่ากัน ค่าเฉลี่ย 0.55em พลาดได้ถึง ~3%
+ *    (เช่น "หน่วย" โมเดลได้ 2.20em ของจริง 2.36em)
+ */
+const WIDTH_SAFETY = 1.06;
+
 /** คอลัมน์ฉลากต้องไม่แคบกว่านี้ ไม่งั้นตัดคำละบรรทัดจนแถวสูงพรวด */
-const LABEL_MIN = TABLE_W * 0.26;
+const LABEL_MIN = TABLE_W * 0.20;
 /** และไม่ต้องกว้างเกินนี้ ที่เหลือคืนให้คอลัมน์ตัวเลขหายใจ */
 const LABEL_MAX = TABLE_W * 0.42;
 
@@ -65,7 +80,7 @@ const FONT_STEP = 0.025;
 /* ---------- ตัวช่วย ---------- */
 
 /** ความกว้างของข้อความ หน่วยเป็น em (คูณด้วยขนาดฟอนต์แล้วได้ cqw) */
-export function textEm(s: string): number {
+function textEm(s: string): number {
   let w = 0;
   for (const ch of s.replace(THAI_COMBINING, '')) {
     w += /[\p{L}\p{N}]/u.test(ch) ? EM_CHAR : EM_PUNCT;
@@ -74,11 +89,11 @@ export function textEm(s: string): number {
 }
 
 /** ข้อความยาว ๆ วางในกล่องกว้าง `boxCqw` จะกินกี่บรรทัด */
-export function wrapLines(s: string, boxCqw: number, fontCqw: number): number {
+function wrapLines(s: string, boxCqw: number, fontCqw: number): number {
   if (!s) return 1;
   const usable = boxCqw * WRAP_FILL;
   if (usable <= 0) return 1;
-  return Math.max(1, Math.ceil((textEm(s) * fontCqw) / usable));
+  return Math.max(1, Math.ceil((textEm(s) * WIDTH_SAFETY * fontCqw) / usable));
 }
 
 /* ---------- ข้อมูลเข้า-ออก ---------- */
@@ -105,16 +120,15 @@ export interface FitResult {
   fontCqw: number;
   /** ความกว้างแต่ละคอลัมน์เป็น % ของตาราง · รวมกันได้ 100 พอดี */
   widthsPct: number[];
-  /** ความสูงตารางที่ประเมินได้ · เกิน availCqw = ยัดไม่ลงแม้ที่ตัวอักษรเล็กสุด */
+  /** ความสูงตารางที่ประเมินได้ · เกิน availCqw = ยัดไม่ลงแม้ตอนตัวอักษรเล็กสุด */
   heightCqw: number;
-  fits: boolean;
 }
 
 /* ---------- ตัวคำนวณ ---------- */
 
 /** ความกว้างที่คอลัมน์หนึ่งต้องการ (cqw) ถ้าไม่ยอมให้ตัดบรรทัด */
 const needCqw = (c: FitColumn, font: number) =>
-  Math.max(...c.texts.map(textEm), 0) * font + c.padCqw + BORDER;
+  Math.max(...c.texts.map(textEm), 0) * WIDTH_SAFETY * font + c.padCqw + BORDER;
 
 function measure(input: FitInput, font: number) {
   const { columns, labels, totalRow } = input;
@@ -176,7 +190,6 @@ export function fitMatrix(input: FitInput): FitResult {
     fontCqw: font,
     widthsPct: widths.map((w) => (w / sum) * 100),
     heightCqw: m.heightCqw,
-    fits: m.heightCqw <= input.availCqw && TABLE_W - m.otherW >= LABEL_MIN,
   };
 }
 

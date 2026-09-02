@@ -516,15 +516,22 @@ export default function EditPage() {
   // สลับเดือนแล้วข้อความของเดือนก่อนต้องหายไป ไม่งั้นค้างบอกผิดเดือน
   useEffect(() => setJumpNote(''), [month]);
 
-  /** เหลืออีกกี่ช่องในแต่ละหัวข้อของเดือนที่เลือก — หัวข้อที่ย่อไว้ก็ยังเห็นตัวเลขนี้ */
-  const sectionLeft = useMemo(() => {
-    const out: Record<string, number> = {};
+  /**
+   * แต่ละหัวข้อของเดือนที่เลือก มีกี่ช่องและยังว่างกี่ช่อง — หัวข้อที่ย่อไว้ก็ยังเห็นตัวเลขนี้
+   * ต้องนับ `rows` ด้วย ไม่ใช่แค่ `left` · ตารางที่เพิ่งสร้างจาก /structure ยังไม่มีแถวเลย
+   * ถ้าดูแค่ "ว่าง 0 ช่อง" จะขึ้นว่า "ครบแล้ว" ทั้งที่ยังไม่มีอะไรให้กรอก
+   */
+  const sectionFill = useMemo(() => {
+    const out: Record<string, { rows: number; left: number }> = {};
     for (const s of view) {
-      let n = 0;
+      let rows = 0;
+      let left = 0;
       for (const b of s.blocks)
-        for (const r of b.rows)
-          if (valueOf(r.blockId, r.rowKey, month, r.values[month]) === null) n += 1;
-      out[s.key] = n;
+        for (const r of b.rows) {
+          rows += 1;
+          if (valueOf(r.blockId, r.rowKey, month, r.values[month]) === null) left += 1;
+        }
+      out[s.key] = { rows, left };
     }
     return out;
   }, [view, month, valueOf]);
@@ -970,16 +977,17 @@ export default function EditPage() {
                 <span className="text-base font-semibold sm:text-lg">{s.title}</span>
 
                 {/* ย่อไว้ก็ยังรู้ว่าหัวข้อนี้ยังต้องกลับมาทำอีกไหม */}
-                {sectionLeft[s.key] > 0 ? (
-                  <span className="chip chip-warn ml-auto shrink-0">
-                    {MONTHS_SHORT[month]} ยังว่าง {sectionLeft[s.key]} ช่อง
-                  </span>
-                ) : (
-                  <span className="chip chip-brand ml-auto shrink-0">
-                    <IconCheck className="h-3.5 w-3.5" />
-                    {MONTHS_SHORT[month]} ครบแล้ว
-                  </span>
-                )}
+                {sectionFill[s.key]?.rows > 0 &&
+                  (sectionFill[s.key].left > 0 ? (
+                    <span className="chip chip-warn ml-auto shrink-0">
+                      {MONTHS_SHORT[month]} ยังว่าง {sectionFill[s.key].left} ช่อง
+                    </span>
+                  ) : (
+                    <span className="chip chip-brand ml-auto shrink-0">
+                      <IconCheck className="h-3.5 w-3.5" />
+                      {MONTHS_SHORT[month]} ครบแล้ว
+                    </span>
+                  ))}
               </button>
 
               {!shut &&
