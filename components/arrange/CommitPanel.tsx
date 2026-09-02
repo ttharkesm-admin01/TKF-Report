@@ -14,6 +14,7 @@ import { IconCheck, IconUpload } from '@/components/ui/icons';
  */
 export function CommitPanel({
   count,
+  actionLabel,
   getFiles,
   message,
   disabled,
@@ -22,6 +23,11 @@ export function CommitPanel({
 }: {
   /** จำนวนไฟล์ที่จะส่ง — ไว้โชว์บนปุ่มเท่านั้น */
   count: number;
+  /**
+   * ข้อความบนปุ่มส่ง · ไม่ใส่ = "ส่ง N ไฟล์"
+   * หน้าที่ส่งไฟล์เดียวแต่แก้หลายอย่าง (เช่น /edit) เขียน "ส่ง 1 ไฟล์" แล้วอ่านไม่รู้เรื่อง
+   */
+  actionLabel?: string;
   /**
    * ประกอบไฟล์ตอนกดส่ง ไม่ใช่ตอน render
    * หน้าที่ต้องอ่านของสดจาก GitHub ก่อนเขียนทับจะได้ทำตรงนี้ได้
@@ -81,7 +87,8 @@ export function CommitPanel({
   const pct = progress ? Math.round((progress.done / Math.max(1, progress.total)) * 100) : 0;
 
   return (
-    <section className="card mt-8 p-5">
+    // scroll-mt เผื่อแถบเมนูที่ติดบนสุด — ป้าย "ยังไม่ใส่โทเคน" บนเมนูพามาที่นี่
+    <section id="token" className="card mt-8 scroll-mt-16 p-5">
       <h2 className="text-lg font-semibold">ส่งเข้าระบบ</h2>
       <p className="mt-1 text-sm leading-relaxed text-muted">
         ส่งเข้ารีโป <span className="font-mono">{repo.owner}/{repo.repo}</span> บรานช์{' '}
@@ -91,6 +98,7 @@ export function CommitPanel({
       <label className="mt-4 block text-sm font-medium">
         GitHub Personal Access Token
         <input
+          id="token-input"
           type="password"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -141,7 +149,7 @@ export function CommitPanel({
           className="btn btn-primary btn-lg font-semibold"
         >
           <IconUpload className="h-4 w-4" />
-          {running ? 'กำลังส่ง…' : `ส่ง ${count} ไฟล์`}
+          {running ? 'กำลังส่ง…' : (actionLabel ?? `ส่ง ${count} ไฟล์`)}
         </button>
 
         {progress && (
@@ -150,6 +158,13 @@ export function CommitPanel({
           </span>
         )}
       </div>
+
+      {/* ปุ่มเทาโดยไม่บอกเหตุผลคือทางตัน — มีของจะส่งแต่ยังไม่มีโทเคน ต้องพูดออกมา */}
+      {!draft.trim() && count > 0 && !disabled && (
+        <p className="note note-warn mt-3" role="status">
+          ใส่โทเคนในช่องข้างบนก่อน ถึงจะกดส่งได้
+        </p>
+      )}
 
       {progress && (
         <div

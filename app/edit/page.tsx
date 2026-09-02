@@ -27,7 +27,15 @@ import { readJsonFile } from '@/lib/github';
 import { useToken } from '@/lib/useToken';
 import { CommitPanel } from '@/components/arrange/CommitPanel';
 import { SiteNav } from '@/components/nav/SiteNav';
-import { IconAlert, IconDown, IconPlus, IconRight, IconTrash } from '@/components/ui/icons';
+import {
+  IconAlert,
+  IconCheck,
+  IconDown,
+  IconPlus,
+  IconRight,
+  IconTarget,
+  IconTrash,
+} from '@/components/ui/icons';
 
 /**
  * งานค้างเก็บทั้งปีในกุญแจเดียว — ของเดิมแยกตามเดือนของรอบ
@@ -205,6 +213,10 @@ export default function EditPage() {
   /** เดือนที่กำลังโฟกัส — ตั้งต้นที่เดือนของรอบ แต่ย้อนไปเดือนไหนก็ได้ */
   const [month, setMonth] = useState(monthIndex);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  /** ช่องที่รอโฟกัสหลังหัวข้อกางเสร็จ — ปุ่ม "ไปช่องว่างถัดไป" ใช้ */
+  const [pendingFocus, setPendingFocus] = useState('');
+  /** ข้อความสั้น ๆ ใต้แถบเครื่องมือ เช่น "เดือนนี้กรอกครบแล้ว" */
+  const [jumpNote, setJumpNote] = useState('');
 
   /** sections.json ตัวปัจจุบันในรีโป — null = ยังไม่ได้ดึง หรือดึงไม่ได้ */
   const [live, setLive] = useState<RawConfig | null>(null);
@@ -223,6 +235,9 @@ export default function EditPage() {
   /** ช่องกรอกทุกช่องบนหน้า — ใช้ย้ายโฟกัสด้วยลูกศรแบบสเปรดชีต */
   const inputs = useRef(new Map<string, HTMLInputElement>());
   const commitRef = useRef<HTMLDivElement>(null);
+  /** ช่องที่ปุ่ม "ไปช่องว่างถัดไป" พาไปล่าสุด — กดปุ่มแล้วโฟกัสย้ายไปที่ปุ่ม
+      ถ้าดูแค่ `document.activeElement` จะกลับไปเริ่มที่ช่องแรกทุกครั้ง ไม่เดินหน้าสักที */
+  const lastJump = useRef('');
 
   /**
    * ดึงของสดตั้งแต่เปิดหน้า ไม่ใช่แค่ตอนกดส่ง (CLAUDE.md กฎข้อ 4)
@@ -426,14 +441,97 @@ export default function EditPage() {
     return map;
   }, [grid]);
 
+  /**
+   * โฟกัสช่องหนึ่ง แล้ว**เลื่อนให้มาอยู่กลางจอ**
+   * ปล่อยให้เบราว์เซอร์เลื่อนเองจะได้ช่องที่ติดขอบบนพอดี ซึ่งอยู่ใต้แถบเครื่องมือ
+   * (`sticky top-12`) — กด "ไปที่ช่องนั้น" แล้วเหมือนไม่มีอะไรเกิดขึ้น
+   */
   const focusCell = (k: string | undefined) => {
     if (!k) return false;
     const el = inputs.current.get(k);
     if (!el) return false;
-    el.focus();
+    el.scrollIntoView({ block: 'center' });
+    el.focus({ preventScroll: true });
     el.select();
     return true;
   };
+
+  /**
+   * ทุกแถวเรียงตามที่เห็นบนหน้า พร้อมหัวข้อที่มันสังกัด
+   * ต่างจาก `navRows` ตรงที่รวมหัวข้อที่ย่อไว้ด้วย — ปุ่มไปช่องว่างต้องข้ามไปหัวข้อที่ย่อได้
+   */
+  const rowIndex = useMemo(
+    () =>
+      view.flatMap((s) =>
+        s.blocks.flatMap((b) => b.rows.map((row) => ({ sectionKey: s.key, row }))),
+      ),
+    [view],
+  );
+
+  /** หัวข้อกางแล้วค่อยโฟกัส — ตอนกดปุ่ม `<input>` ของหัวข้อที่ย่ออยู่ยังไม่มีบนหน้า */
+  useEffect(() => {
+    if (!pendingFocus) return;
+    if (focusCell(pendingFocus)) setPendingFocus('');
+    // focusCell อ่านจาก ref ล้วน ๆ ไม่ต้องใส่เป็น dependency
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingFocus, collapsed]);
+
+  /**
+   * ไปช่องที่ยังไม่กรอกช่องถัดไปของเดือนที่เลือก · วนกลับต้นเมื่อถึงท้ายหน้า
+   *
+   * ของเดิมรู้แค่ว่า "เดือนนี้กรอกไป 50 จาก 56" แต่ไม่มีทางรู้ว่าอีก 6 ช่องอยู่ตรงไหน
+   * ต้องไล่สายตาผ่าน 13 หัวข้อหาช่องว่างเอง · งานตามเก็บของเดือนเก่าเจ็บที่สุดตรงนี้
+   */
+  const jumpToNextEmpty = () => {
+    setJumpNote('');
+    const n = rowIndex.length;
+    if (!n) return;
+    // เริ่มนับจากช่องที่โฟกัสอยู่ · ไม่ได้อยู่ในช่องไหน (เช่นเพิ่งกดปุ่มนี้) ก็นับจากช่องที่ไปล่าสุด
+    const active = document.activeElement;
+    const here =
+      rowIndex.find(({ row }) => inputs.current.get(cellKey(row.blockId, row.rowKey, month)) === active)
+        ?.row ?? null;
+    const fromKey = here ? cellKey(here.blockId, here.rowKey, month) : lastJump.current;
+    const from = rowIndex.findIndex(
+      ({ row }) => cellKey(row.blockId, row.rowKey, month) === fromKey,
+    );
+
+    for (let step = 1; step <= n; step += 1) {
+      const { sectionKey, row } = rowIndex[(from + step + n) % n];
+      if (valueOf(row.blockId, row.rowKey, month, row.values[month]) !== null) continue;
+
+      const k = cellKey(row.blockId, row.rowKey, month);
+      lastJump.current = k;
+      if (collapsed[sectionKey]) {
+        setCollapsed((p) => ({ ...p, [sectionKey]: false }));
+        setPendingFocus(k);
+      } else {
+        focusCell(k);
+      }
+      return;
+    }
+    setJumpNote(`${MONTHS[month]} กรอกครบทุกช่องแล้ว`);
+  };
+
+  // สลับเดือนแล้วข้อความของเดือนก่อนต้องหายไป ไม่งั้นค้างบอกผิดเดือน
+  useEffect(() => setJumpNote(''), [month]);
+
+  /** เหลืออีกกี่ช่องในแต่ละหัวข้อของเดือนที่เลือก — หัวข้อที่ย่อไว้ก็ยังเห็นตัวเลขนี้ */
+  const sectionLeft = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const s of view) {
+      let n = 0;
+      for (const b of s.blocks)
+        for (const r of b.rows)
+          if (valueOf(r.blockId, r.rowKey, month, r.values[month]) === null) n += 1;
+      out[s.key] = n;
+    }
+    return out;
+  }, [view, month, valueOf]);
+
+  /** เหลืออีกกี่ช่องในตารางเดียว */
+  const blockLeft = (b: ViewBlock) =>
+    b.rows.filter((r) => valueOf(r.blockId, r.rowKey, month, r.values[month]) === null).length;
 
   /**
    * ลูกศรเดินระหว่างช่องแบบสเปรดชีต · Enter ลงแถวถัดไป · Esc คืนค่าเดิม
@@ -792,6 +890,16 @@ export default function EditPage() {
             />
           </div>
 
+          {/* หาช่องที่ยังว่างให้เอง — ไม่ต้องไล่สายตาผ่าน 13 หัวข้อ */}
+          <button
+            onClick={jumpToNextEmpty}
+            disabled={filledThis >= totalRows}
+            className="btn btn-outline btn-sm"
+          >
+            <IconTarget className="h-3.5 w-3.5" />
+            ไปช่องว่างถัดไป
+          </button>
+
           <button
             onClick={() =>
               setCollapsed(
@@ -813,6 +921,12 @@ export default function EditPage() {
             แก้ไว้ {changedCount} รายการ · ไปที่ปุ่มส่ง
           </button>
         </div>
+
+        {jumpNote && (
+          <p className="note note-brand mt-3" role="status">
+            {jumpNote}
+          </p>
+        )}
 
         <p className="mt-3 text-xs leading-relaxed text-muted">
           ช่องว่าง = ยังไม่กรอก · พิมพ์ <span className="font-mono">-</span> = ไม่มีรายการเดือนนั้นจริง ๆ
@@ -854,12 +968,29 @@ export default function EditPage() {
                 </span>
                 <span className="font-mono text-primary tabular-nums">{s.number}</span>
                 <span className="text-base font-semibold sm:text-lg">{s.title}</span>
+
+                {/* ย่อไว้ก็ยังรู้ว่าหัวข้อนี้ยังต้องกลับมาทำอีกไหม */}
+                {sectionLeft[s.key] > 0 ? (
+                  <span className="chip chip-warn ml-auto shrink-0">
+                    {MONTHS_SHORT[month]} ยังว่าง {sectionLeft[s.key]} ช่อง
+                  </span>
+                ) : (
+                  <span className="chip chip-brand ml-auto shrink-0">
+                    <IconCheck className="h-3.5 w-3.5" />
+                    {MONTHS_SHORT[month]} ครบแล้ว
+                  </span>
+                )}
               </button>
 
               {!shut &&
                 s.blocks.map((b) => (
                   <div key={b.blockId} className="mt-4">
-                    <h3 className="text-sm font-medium text-muted">{b.title}</h3>
+                    <h3 className="flex flex-wrap items-center gap-2 text-sm font-medium text-muted">
+                      {b.title}
+                      {blockLeft(b) > 0 && (
+                        <span className="chip chip-warn">ยังว่าง {blockLeft(b)}</span>
+                      )}
+                    </h3>
 
                     {mode === 'year' ? (
                       /* ---- ตารางทั้งปี: แถว × 12 เดือน ---- */
@@ -1111,6 +1242,7 @@ export default function EditPage() {
         <div ref={commitRef} className="scroll-mt-32">
           <CommitPanel
             count={changedCount ? 1 : 0}
+            actionLabel={`ส่งที่แก้ไว้ ${changedCount} รายการ`}
             getFiles={getFiles}
             message={commitMessage}
             disabled={changedCount === 0}

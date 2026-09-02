@@ -39,7 +39,8 @@ export default function StructurePage() {
 
   const load = useCallback(async () => {
     if (!token) {
-      setStatus('ยังไม่มีโทเคน — ใส่ในกรอบล่างสุดแล้วกดโหลดใหม่');
+      // ใส่โทเคนแล้ว useToken จะยิง load() ให้เอง ไม่ต้องกดโหลดใหม่
+      setStatus('ยังไม่มีโทเคน — หน้านี้อ่านโครงสร้างสดจากรีโป จึงต้องมีโทเคนก่อน');
       return;
     }
     setStatus('กำลังโหลดของสดจาก GitHub…');
@@ -66,6 +67,24 @@ export default function StructurePage() {
   const dirty = cfg !== null && base !== null && JSON.stringify(cfg) !== base;
 
   /**
+   * หน้านี้ไม่ได้เก็บงานค้างไว้ในเบราว์เซอร์เหมือน /edit — ปิดแท็บแล้วหายจริง
+   * กำหนดคอลัมน์ตารางทีละอันใช้เวลาเป็นสิบนาที ปล่อยให้หายเงียบไม่ได้
+   */
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+
+  /** โหลดใหม่ = ทิ้งสิ่งที่แก้ไว้ทั้งหมด ต้องถามก่อน */
+  const reload = () => {
+    if (dirty && !confirm('โหลดใหม่แล้วสิ่งที่แก้ไว้แต่ยังไม่ได้ส่งจะหายทั้งหมด · จะโหลดใหม่ไหม?'))
+      return;
+    void load();
+  };
+
+  /**
    * อ่านของสดอีกครั้งตอนกดส่ง ถ้ามีคนแก้แทรกให้หยุดไว้ก่อน
    * หน้านี้เขียนทั้งไฟล์ ไม่ใช่แค่ช่องเดียว การทับกันจึงเสียหายกว่าหน้า /edit มาก
    */
@@ -85,6 +104,10 @@ export default function StructurePage() {
         <h1 className="text-2xl font-bold tracking-tight">แก้โครงสร้างเด็ค</h1>
         <p className="note note-warn mt-3" role="status">
           {status || 'กำลังโหลด…'}
+        </p>
+        <p className="mt-3 text-sm leading-relaxed text-muted">
+          ใส่โทเคนในกรอบ <b>ส่งเข้าระบบ</b> ข้างล่างแล้วกดออกจากช่อง
+          หน้านี้จะโหลดโครงสร้างให้เองทันที ไม่ต้องกดอะไรอีก
         </p>
         <button onClick={() => void load()} className="btn btn-outline mt-3">
           <IconRefresh className="h-4 w-4" />
@@ -114,11 +137,15 @@ export default function StructurePage() {
       )}
 
       <div className="mt-4 flex items-center gap-3 text-sm">
-        <button onClick={() => void load()} className="btn btn-outline btn-sm">
+        <button onClick={reload} className="btn btn-outline btn-sm">
           <IconRefresh className="h-3.5 w-3.5" />
           โหลดใหม่จากรีโป
         </button>
-        {dirty && <span className="chip chip-warn">มีการแก้ที่ยังไม่ได้ส่ง</span>}
+        {dirty && (
+          <span className="chip chip-warn">
+            มีการแก้ที่ยังไม่ได้ส่ง — ปิดหน้านี้แล้วหาย ต้องกดส่งก่อน
+          </span>
+        )}
       </div>
 
       {cfg.sections.map((s, si) => (
@@ -258,6 +285,7 @@ export default function StructurePage() {
       <CommitPanel
         count={dirty ? 1 : 0}
         getFiles={getFiles}
+        actionLabel="ส่งโครงสร้างที่แก้ไว้"
         message="Update deck structure"
         disabled={!dirty}
         onDone={() => void load()}
